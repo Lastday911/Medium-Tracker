@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Medium Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero">
+        <p class="brand">Medium Tracker</p>
+        <h1>Finde trendende KI-Themen für deinen nächsten Medium-Artikel.</h1>
+        <p>
+          Die App prüft deinen OpenAI API-Key, lädt aktuelle Modelle und
+          durchsucht mit dem gewählten Modell das Web nach komplexen,
+          erklärungsbedürftigen KI-Themen.
+        </p>
+      </section>
+
+      <section class="panel" aria-labelledby="setupTitle">
+        <h2 id="setupTitle" class="sr-only">Konfiguration</h2>
+        <label for="apiKey">OpenAI API-Key</label>
+        <div class="row">
+          <input
+            id="apiKey"
+            type="password"
+            placeholder="sk-..."
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button id="verifyBtn" type="button">
+            <span class="btn-icon" aria-hidden="true">✓</span>API verifizieren
+          </button>
+        </div>
+        <p id="verifyStatus" class="status" role="status" aria-live="polite"></p>
+
+        <label for="modelSelect">Modell auswählen</label>
+        <select id="modelSelect" disabled>
+          <option value="">Bitte zuerst API-Key verifizieren</option>
+        </select>
+
+        <button id="searchBtn" type="button" disabled>
+          <span class="btn-icon" aria-hidden="true">🔎</span>Suche mir nach einem Thema
+        </button>
+      </section>
+
+      <section id="results" class="results hidden" aria-live="polite">
+        <div id="resultActions" class="result-actions hidden" role="group" aria-label="Ergebnisaktionen">
+          <button id="copyBtn" type="button" class="secondary-btn">
+            <span class="btn-icon" aria-hidden="true">📋</span>Text kopieren
+          </button>
+          <button id="telegramBtn" type="button" class="secondary-btn">
+            <span class="btn-icon" aria-hidden="true">✈</span>In Telegram senden
+          </button>
+          <button id="whatsappBtn" type="button" class="secondary-btn">
+            <span class="btn-icon" aria-hidden="true">💬</span>An WhatsApp senden
+          </button>
+          <button id="exportJsonBtn" type="button" class="secondary-btn">
+            <span class="btn-icon" aria-hidden="true">{ }</span>Als JSON speichern
+          </button>
+          <button id="exportMdBtn" type="button" class="secondary-btn">
+            <span class="btn-icon" aria-hidden="true">📝</span>Als Markdown speichern
+          </button>
+        </div>
+        <p id="actionStatus" class="status" role="status" aria-live="polite"></p>
+        <article id="bestTopic" class="best-topic"></article>
+        <div id="topicList" class="topic-list"></div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
