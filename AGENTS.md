@@ -23,12 +23,16 @@ Danach: `http://localhost:3000`
 - `GET /health`
 - `POST /api/verify-key`
 - `GET /api/models` (Header: `x-openai-api-key`)
-- `POST /api/find-topics`
+- `POST /api/find-topics` (Body: `apiKey`, `model`, optional `category`)
 
 ## Produktregeln
 
 - API-Key niemals persistieren oder loggen.
 - Ergebnisse auf **maximal 5 Themen** begrenzen.
+- Kategorien fuer die Themensuche:
+  - `general_trends` (Allgemeine KI-Trends)
+  - `engineering_research` (KI-Engineering & Forschung)
+  - `business_strategy` (KI in Business & Produktivitaet)
 - Top-Empfehlung mit Ueberschrift, Zusammenfassung und Fokuspunkten liefern.
 - UI-Texte auf Deutsch halten.
 - Ergebnisaktionen muessen funktionieren:
@@ -55,10 +59,10 @@ node --check public/app.js
 Optional manuell pruefen:
 1. API-Key verifizieren
 2. Modell auswaehlen
-3. Themensuche starten
-4. Copy/Telegram/WhatsApp/Export-Buttons testen
+3. Kategorie auswaehlen
+4. Themensuche starten
+5. Copy/Telegram/WhatsApp/Export-Buttons testen
 
 ## Deployment-Hinweis
 
 Die App ist fuer Render geeignet (`npm install`, `npm start`).
-

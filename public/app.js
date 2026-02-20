@@ -2,6 +2,7 @@ const apiKeyInput = document.getElementById("apiKey");
 const verifyBtn = document.getElementById("verifyBtn");
 const verifyStatus = document.getElementById("verifyStatus");
 const modelSelect = document.getElementById("modelSelect");
+const categorySelect = document.getElementById("categorySelect");
 const searchBtn = document.getElementById("searchBtn");
 const results = document.getElementById("results");
 const bestTopic = document.getElementById("bestTopic");
@@ -16,6 +17,19 @@ const exportMdBtn = document.getElementById("exportMdBtn");
 
 let lastVerifiedApiKey = "";
 let latestResult = null;
+let resultScrollFrameId = null;
+const CATEGORY_LABELS = {
+  general_trends: "Allgemeine KI-Trends",
+  engineering_research: "KI-Engineering & Forschung",
+  business_strategy: "KI in Business & Produktivität"
+};
+
+function getSelectedCategory() {
+  const category = categorySelect?.value || "";
+  return Object.prototype.hasOwnProperty.call(CATEGORY_LABELS, category)
+    ? category
+    : "general_trends";
+}
 
 function applyStatusState(element, message, isError = false) {
   const hasMessage = Boolean(message);
@@ -50,6 +64,10 @@ function resetModelSelection() {
 }
 
 function resetResultView() {
+  if (resultScrollFrameId !== null) {
+    window.cancelAnimationFrame(resultScrollFrameId);
+    resultScrollFrameId = null;
+  }
   latestResult = null;
   results.classList.add("hidden");
   resultActions.classList.add("hidden");
@@ -122,6 +140,8 @@ function normalizeResultPayload(payload) {
 
   return {
     model: toText(payload?.model),
+    category: toText(payload?.category),
+    categoryLabel: toText(payload?.categoryLabel),
     topics,
     bestRecommendation
   };
@@ -164,6 +184,43 @@ function renderRecommendation(data) {
   `;
 }
 
+function focusResults() {
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const offsetTop = 64;
+  const targetTop = Math.max(window.scrollY + bestTopic.getBoundingClientRect().top - offsetTop, 0);
+
+  if (resultScrollFrameId !== null) {
+    window.cancelAnimationFrame(resultScrollFrameId);
+    resultScrollFrameId = null;
+  }
+
+  if (prefersReducedMotion) {
+    window.scrollTo({ top: targetTop, behavior: "auto" });
+    return;
+  }
+
+  const startTop = window.scrollY;
+  const distance = targetTop - startTop;
+  const durationMs = 950;
+  const startTime = performance.now();
+  const easeInOutCubic = (t) =>
+    t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+  const step = (timestamp) => {
+    const elapsed = timestamp - startTime;
+    const progress = Math.min(elapsed / durationMs, 1);
+    const eased = easeInOutCubic(progress);
+    window.scrollTo(0, startTop + distance * eased);
+    if (progress < 1) {
+      resultScrollFrameId = window.requestAnimationFrame(step);
+      return;
+    }
+    resultScrollFrameId = null;
+  };
+
+  resultScrollFrameId = window.requestAnimationFrame(step);
+}
+
 function ensureResultAvailable() {
   if (!latestResult || !latestResult.topics.length) {
     setActionStatus("Kein Ergebnis vorhanden. Bitte zuerst eine Themensuche ausführen.", true);
@@ -176,6 +233,7 @@ function buildReadableText(result) {
   const lines = [];
   lines.push("Medium Tracker - Ergebnis");
   lines.push(`Modell: ${result.model}`);
+  lines.push(`Kategorie: ${result.categoryLabel || result.category || "Nicht angegeben"}`);
   lines.push("");
 
   if (result.bestRecommendation) {
@@ -213,6 +271,7 @@ function buildMarkdown(result) {
   lines.push("# Medium Tracker Ergebnis");
   lines.push("");
   lines.push(`- Modell: \`${result.model}\``);
+  lines.push(`- Kategorie: ${result.categoryLabel || result.category || "Nicht angegeben"}`);
   lines.push("");
 
   if (result.bestRecommendation) {
@@ -256,6 +315,8 @@ function buildExportPayload(result) {
     app: "Medium Tracker",
     exportedAt: new Date().toISOString(),
     model: result.model,
+    category: result.category || "",
+    categoryLabel: result.categoryLabel || "",
     bestRecommendation: result.bestRecommendation,
     topics: result.topics
   };
@@ -463,9 +524,11 @@ async function verifyKeyAndLoadModels() {
 async function searchTopics() {
   const apiKey = apiKeyInput.value.trim();
   const model = modelSelect.value;
+  const category = getSelectedCategory();
+  const categoryLabel = CATEGORY_LABELS[category];
 
-  if (!apiKey || !model) {
-    setStatus("Bitte API-Key verifizieren und ein Modell auswählen.", true);
+  if (!apiKey || !model || !categoryLabel) {
+    setStatus("Bitte API-Key verifizieren, ein Modell und eine Kategorie auswählen.", true);
     return;
   }
 
@@ -475,9 +538,17 @@ async function searchTopics() {
     return;
   }
 
+  if (resultScrollFrameId !== null) {
+    window.cancelAnimationFrame(resultScrollFrameId);
+    resultScrollFrameId = null;
+  }
+
   searchBtn.disabled = true;
   setButtonLoading(searchBtn, "Suche läuft...", true);
-  setStatus("Suche nach trendenden KI-Themen läuft...");
+  if (categorySelect) {
+    categorySelect.disabled = true;
+  }
+  setStatus(`Suche in Kategorie "${categoryLabel}" läuft...`);
   setActionStatus("");
   results.setAttribute("aria-busy", "true");
   results.classList.add("hidden");
@@ -488,7 +559,7 @@ async function searchTopics() {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, model })
+        body: JSON.stringify({ apiKey, model, category })
       },
       130000
     );
@@ -506,7 +577,9 @@ async function searchTopics() {
     renderTopics(latestResult.topics);
     resultActions.classList.remove("hidden");
     results.classList.remove("hidden");
-    setStatus(`Suche abgeschlossen mit Modell ${model}.`);
+    focusResults();
+    const responseCategoryLabel = latestResult.categoryLabel || categoryLabel;
+    setStatus(`Suche abgeschlossen mit Modell ${model} in Kategorie "${responseCategoryLabel}".`);
   } catch (error) {
     if (error?.name === "AbortError") {
       setStatus(
@@ -519,6 +592,9 @@ async function searchTopics() {
     resetResultView();
   } finally {
     results.setAttribute("aria-busy", "false");
+    if (categorySelect) {
+      categorySelect.disabled = false;
+    }
     setButtonLoading(searchBtn, "Suche läuft...", false);
     searchBtn.disabled = !modelSelect.value;
   }

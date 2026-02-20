@@ -7,6 +7,24 @@ const PORT = process.env.PORT || 3000;
 const OPENAI_BASE_URL = "https://api.openai.com/v1";
 const MODEL_TIMEOUT_MS = 30000;
 const SEARCH_TIMEOUT_MS = 120000;
+const DEFAULT_TOPIC_CATEGORY = "general_trends";
+const TOPIC_CATEGORIES = Object.freeze({
+  general_trends: {
+    label: "Allgemeine KI-Trends",
+    instruction:
+      "Fokussiere auf uebergreifende Durchbrueche, neue Modellfaehigkeiten, wichtige Releases und echte Trendverschiebungen im KI-Oekosystem."
+  },
+  engineering_research: {
+    label: "KI-Engineering & Forschung",
+    instruction:
+      "Fokussiere auf technische KI-Themen wie Architektur-Entscheidungen, Inferenz-Optimierung, Evaluierung, Forschungsergebnisse und konkrete Engineering-Herausforderungen."
+  },
+  business_strategy: {
+    label: "KI in Business & Produktivitaet",
+    instruction:
+      "Fokussiere auf KI-Einsatz in Unternehmen: Produktstrategie, Workflows, ROI, Operationalisierung, Governance in Teams und messbare Business-Implikationen."
+  }
+});
 
 const TOPIC_OUTPUT_SCHEMA = {
   type: "object",
@@ -143,6 +161,10 @@ function isLikelyTextModel(modelId) {
     return false;
   }
   return true;
+}
+
+function isSupportedTopicCategory(categoryId) {
+  return typeof categoryId === "string" && Object.prototype.hasOwnProperty.call(TOPIC_CATEGORIES, categoryId);
 }
 
 function modelPriority(modelId) {
@@ -317,10 +339,17 @@ async function fetchOpenAIModels(apiKey) {
     .sort((a, b) => (b?.created || 0) - (a?.created || 0));
 }
 
-async function requestTopicIdeas({ apiKey, model }) {
+async function requestTopicIdeas({ apiKey, model, category }) {
+  const selectedCategory = isSupportedTopicCategory(category)
+    ? category
+    : DEFAULT_TOPIC_CATEGORY;
+  const categoryConfig = TOPIC_CATEGORIES[selectedCategory];
   const prompt = [
     "Du bist ein Research-Assistent für Medium-Autoren.",
     "Nutze Websuche fokussiert auf die letzten Wochen und liefere NUR 5 trendende KI-Themen.",
+    `Fokus-Kategorie: ${categoryConfig.label}.`,
+    categoryConfig.instruction,
+    "Bleibe strikt in dieser Kategorie und mische keine anderen Kategorie-Schwerpunkte.",
     "Die Themen sollen anspruchsvoll und erklärungsbedürftig sein (nicht trivial).",
     "Jedes Thema braucht klare journalistische Einordnung für Medium."
   ].join("\n");
@@ -526,7 +555,7 @@ app.get("/api/models", async (req, res) => {
 });
 
 app.post("/api/find-topics", async (req, res) => {
-  const { apiKey, model } = req.body || {};
+  const { apiKey, model, category } = req.body || {};
 
   if (!looksLikeApiKey(apiKey)) {
     return res.status(400).json({
@@ -542,11 +571,25 @@ app.post("/api/find-topics", async (req, res) => {
     });
   }
 
+  const selectedCategory = typeof category === "string" ? category.trim() : DEFAULT_TOPIC_CATEGORY;
+  if (!isSupportedTopicCategory(selectedCategory)) {
+    return res.status(400).json({
+      ok: false,
+      message: "Ungültige Kategorie. Bitte eine verfügbare Kategorie auswählen."
+    });
+  }
+
   try {
-    const result = await requestTopicIdeas({ apiKey, model: model.trim() });
+    const result = await requestTopicIdeas({
+      apiKey,
+      model: model.trim(),
+      category: selectedCategory
+    });
     return res.json({
       ok: true,
       model: model.trim(),
+      category: selectedCategory,
+      categoryLabel: TOPIC_CATEGORIES[selectedCategory].label,
       topics: result.topics,
       bestRecommendation: result.bestRecommendation
     });
