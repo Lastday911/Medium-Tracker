@@ -1,59 +1,59 @@
 # AGENTS.md
 
-## Projektueberblick
+## Project Overview
 
-Dieses Repository enthaelt **Medium Tracker**:
-- Frontend: statische Dateien in `public/`
+This repository contains **Medium Tracker**:
+- Frontend: static files in `public/`
 - Backend: Node.js + Express in `src/server.js`
-- Datenbank: PostgreSQL (Runtime-Konfiguration, Verlauf, Admin-Konfiguration)
-- Ziel: aktuelle, komplexe KI-Themen fuer Medium per OpenAI API finden
+- Database: PostgreSQL (runtime configuration, history, admin configuration)
+- Goal: find current, complex AI topics for Medium via the OpenAI API
 
-Die App ist auf Deutsch ausgerichtet.
+The app is designed for German-language usage.
 
-## Umsetzungsstatus
+## Implementation Status
 
-- Phase 1 abgeschlossen: DB-Modell, Migrationen, Seeds
-- Phase 2 abgeschlossen: Backend entkoppelt von Hardcodierung (Runtime-Config aus DB)
-- Phase 3 abgeschlossen: History-Endpunkte + History-UI
-- Phase 4 abgeschlossen: Kategorie-Admin-Endpunkte + Admin-UI + `ADMIN_TOKEN` Schutz
-- Phase 5 abgeschlossen: Prompt-Template-Versionierung, Modell-Policy-Verwaltung, Feature-Flags
-- Phase 6 abgeschlossen: API-/UI-Tests, strukturierte Logs mit Secret-Redaction, Rollout-Mechanik
+- Phase 1 completed: DB model, migrations, seeds
+- Phase 2 completed: backend decoupled from hardcoding (runtime config from DB)
+- Phase 3 completed: history endpoints + history UI
+- Phase 4 completed: category admin endpoints + admin UI + `ADMIN_TOKEN` protection
+- Phase 5 completed: prompt template versioning, model policy management, feature flags
+- Phase 6 completed: API/UI tests, structured logs with secret redaction, rollout mechanism
 
-## Lokaler Start
+## Local Start
 
 ```bash
 npm install
 npm start
 ```
 
-Danach: `http://localhost:3000`
+Then: `http://localhost:3000`
 
-Empfohlene Umgebungsvariablen:
+Recommended environment variables:
 
-- `DATABASE_URL` (erforderlich fuer DB-gestuetzten Betrieb)
-- `ADMIN_TOKEN` (erforderlich fuer Admin-Endpunkte)
+- `DATABASE_URL` (required for DB-backed operation)
+- `ADMIN_TOKEN` (required for admin endpoints)
 - `LOG_LEVEL=debug` (optional)
-- `LOG_SILENT=true` (optional, v. a. fuer Tests)
+- `LOG_SILENT=true` (optional, especially for tests)
 
-## Wichtige Routen
+## Important Routes
 
-Oeffentlich:
+Public:
 - `GET /health`
 - `POST /api/verify-key`
-- `GET /api/models` (Header: `x-openai-api-key`)
+- `GET /api/models` (header: `x-openai-api-key`)
 - `GET /api/categories`
-- `POST /api/find-topics` (Body: `apiKey`, `model`, optional `category`)
+- `POST /api/find-topics` (body: `apiKey`, `model`, optional `category`)
 - `GET /api/history`
 - `GET /api/history/:id`
 - `DELETE /api/history/:id`
 
-Admin (Header: `x-admin-token`, alternativ `Authorization: Bearer <token>`):
+Admin (header: `x-admin-token`, alternatively `Authorization: Bearer <token>`):
 - `GET /api/admin/feature-flags`
 - `PUT /api/admin/feature-flags/:flagKey`
 - `GET /api/admin/categories`
 - `POST /api/admin/categories`
 - `PATCH /api/admin/categories/:slug`
-- `DELETE /api/admin/categories/:slug` (deaktiviert Kategorie)
+- `DELETE /api/admin/categories/:slug` (disables category)
 - `GET /api/admin/prompt-templates`
 - `POST /api/admin/prompt-templates/versions`
 - `POST /api/admin/prompt-templates/activate`
@@ -62,76 +62,76 @@ Admin (Header: `x-admin-token`, alternativ `Authorization: Bearer <token>`):
 - `PATCH /api/admin/model-policies/:modelId`
 - `DELETE /api/admin/model-policies/:modelId`
 
-## Rollout-Regeln
+## Rollout Rules
 
-Feature-Flags steuern Rollout und Schreibzugriffe:
+Feature flags control rollout and write access:
 
 - `history_enabled`
 - `category_admin_enabled`
 - `dynamic_config_enabled`
-- `admin_write_enabled` (wichtig fuer Admin-Schreibzugriffe)
+- `admin_write_enabled` (important for admin write access)
 
-Wichtig:
-- Admin-Reads koennen aktiv sein, waehrend Writes read-only bleiben.
-- Write-Routen sind gesperrt, solange `admin_write_enabled` nicht fuer den Request aktiv ist.
+Important:
+- Admin reads can be active while writes remain read-only.
+- Write routes are blocked as long as `admin_write_enabled` is not active for the request.
 
-## Produktregeln
+## Product Rules
 
-- API-Key niemals persistieren oder loggen.
-- Ergebnisse auf **maximal 5 Themen** begrenzen.
-- Kategorien fuer die Themensuche:
-  - `general_trends` (Allgemeine KI-Trends)
-  - `engineering_research` (KI-Engineering & Forschung)
-  - `business_strategy` (KI in Business & Produktivitaet)
-- Top-Empfehlung mit Ueberschrift, Zusammenfassung und Fokuspunkten liefern.
-- UI-Texte auf Deutsch halten.
-- Ergebnisaktionen muessen funktionieren:
-  - Text kopieren
-  - In Telegram senden
-  - An WhatsApp senden
-  - Als JSON speichern
-  - Als Markdown speichern
-- History-Flow muss funktionieren (Laden + Loeschen)
-- Admin-Flow muss funktionieren (Kategorie/Prompt/Policy/Flags)
+- Never persist or log the API key.
+- Limit results to **a maximum of 5 topics**.
+- Categories for topic search:
+  - `general_trends` (general AI trends)
+  - `engineering_research` (AI engineering & research)
+  - `business_strategy` (AI in business & productivity)
+- Provide a top recommendation with title, summary, and focus points.
+- Keep UI text in German.
+- Result actions must work:
+  - Copy text
+  - Send to Telegram
+  - Send to WhatsApp
+  - Save as JSON
+  - Save as Markdown
+- History flow must work (load + delete)
+- Admin flow must work (category/prompt/policy/flags)
 
-## Code-Regeln
+## Code Rules
 
-- Bestehende Funktionalitaet nicht brechen.
-- Keine toten oder doppelten Codepfade einfuehren.
-- Aenderungen klein und nachvollziehbar halten.
-- Fehlertexte fuer Nutzer klar und auf Deutsch formulieren.
-- Strukturierte Logs beibehalten (JSON-Events).
-- Niemals Secrets im Log ausgeben (Redaction beachten).
+- Do not break existing functionality.
+- Do not introduce dead or duplicate code paths.
+- Keep changes small and traceable.
+- User-facing error messages must be clear and in German.
+- Keep structured logs (JSON events).
+- Never output secrets in logs (respect redaction).
 
-## Schnelltests vor Abschluss
+## Quick Tests Before Completion
 
 ```bash
 node --check src/server.js
 node --check public/app.js
 npm run test:api
 npm run test:ui
-# oder komplett:
+# or full suite:
 npm test
 ```
 
-Optional manuell pruefen:
-1. API-Key verifizieren
-2. Modell auswaehlen
-3. Kategorie auswaehlen
-4. Themensuche starten
-5. Copy/Telegram/WhatsApp/Export-Buttons testen
-6. Verlauf laden/loeschen testen
-7. Admin laden (mit `ADMIN_TOKEN`)
-8. Kategorie anlegen/bearbeiten/deaktivieren
-9. Prompt-Template-Version erstellen/aktivieren
-10. Modell-Policy erstellen/bearbeiten/loeschen
-11. Feature-Flags setzen (inkl. `admin_write_enabled`)
+Optional manual checks:
+1. Verify API key
+2. Select model
+3. Select category
+4. Start topic search
+5. Test copy/Telegram/WhatsApp/export buttons
+6. Test loading/deleting history
+7. Open admin area (with `ADMIN_TOKEN`)
+8. Create/edit/disable category
+9. Create/activate prompt template version
+10. Create/edit/delete model policy
+11. Set feature flags (including `admin_write_enabled`)
 
-## Deployment-Hinweis
+## Deployment Note
 
-Die App ist fuer Render geeignet (`npm install`, `npm start`).
-Vor Deploy sicherstellen:
+The app is ready for Render (`npm install`, `npm start`).
+Before deploying, make sure:
 
-- `DATABASE_URL` gesetzt
-- `ADMIN_TOKEN` gesetzt
-- Feature-Flags in DB passend zum Rollout-Plan gesetzt
+- `DATABASE_URL` is set
+- `ADMIN_TOKEN` is set
+- Feature flags in DB are set according to the rollout plan

@@ -1,23 +1,23 @@
 # Medium Tracker
 
-**Medium Tracker** ist eine Open-Source-Webapp für Medium-Autoren, die schnell aktuelle, komplexe und trendende KI-Themen finden wollen.
+**Medium Tracker** is an open-source web app for Medium authors who want to quickly find current, complex, and trending AI topics.
 
-Die App nutzt OpenAI-Modelle mit Websuche, liefert genau **5 Themen**, eine **Top-Empfehlung** und bietet direkte Weitergabe per Copy/Telegram/WhatsApp sowie Export als JSON/Markdown.
+The app uses OpenAI models with web search, returns exactly **5 topics**, one **top recommendation**, and supports direct sharing via Copy/Telegram/WhatsApp plus export as JSON/Markdown.
 
 ## Features
 
-- OpenAI API-Key im UI eingeben und serverseitig verifizieren
-- Dynamischer Modelselektor über `GET /v1/models`
-- Themensuche über Responses API + Websuche
-- Aktuell auf eine Suchkategorie beschränkt: **Künstliche Intelligenz (AI)**
-- Exakt 5 Themen + 1 Top-Empfehlung mit Fokuspunkten
-- Aktionen:
-  - Text kopieren
-  - In Telegram senden
-  - An WhatsApp senden
-  - Als JSON speichern
-  - Als Markdown speichern
-- Für Render-Deployment vorbereitet
+- Enter OpenAI API key in the UI and verify it server-side
+- Dynamic model selector via `GET /v1/models`
+- Topic search via the Responses API + web search
+- Currently limited to one search category: **Artificial Intelligence (AI)**
+- Exactly 5 topics + 1 top recommendation with focus points
+- Actions:
+  - Copy text
+  - Send to Telegram
+  - Send to WhatsApp
+  - Save as JSON
+  - Save as Markdown
+- Ready for Render deployment
 
 ## Tech Stack
 
@@ -25,26 +25,26 @@ Die App nutzt OpenAI-Modelle mit Websuche, liefert genau **5 Themen**, eine **To
 - Express
 - Vanilla HTML/CSS/JavaScript
 
-## Lokal starten
+## Run Locally
 
 ```bash
 npm install
 npm start
 ```
 
-Danach im Browser öffnen:
+Then open in the browser:
 
 `http://localhost:3000`
 
-## Nutzung
+## Usage
 
-1. API-Key eintragen (`sk-...`)
-2. `API verifizieren` klicken
-3. Modell auswählen
-4. `Suche mir nach einem Thema` klicken
-5. Ergebnis weitergeben oder exportieren
+1. Enter API key (`sk-...`)
+2. Click `Verify API`
+3. Select a model
+4. Click `Find me a topic`
+5. Share or export the result
 
-## API-Endpunkte
+## API Endpoints
 
 - `GET /health`
 - `POST /api/verify-key`
@@ -55,12 +55,12 @@ Danach im Browser öffnen:
   - Body: `{ "apiKey": "sk-...", "model": "gpt-5.2" }`
 - `GET /api/categories`
 
-### Admin-Endpunkte (Header: `x-admin-token: <ADMIN_TOKEN>`)
+### Admin Endpoints (Header: `x-admin-token: <ADMIN_TOKEN>`)
 
 - `GET /api/admin/categories`
 - `POST /api/admin/categories`
 - `PATCH /api/admin/categories/:slug`
-- `DELETE /api/admin/categories/:slug` (deaktiviert Kategorie)
+- `DELETE /api/admin/categories/:slug` (disables category)
 - `GET /api/admin/prompt-templates`
 - `POST /api/admin/prompt-templates/versions`
 - `POST /api/admin/prompt-templates/activate`
@@ -73,52 +73,52 @@ Danach im Browser öffnen:
 
 ## Tests
 
-- `npm test` (komplette Suite)
-- `npm run test:api` (API-/Integrations-Tests)
-- `npm run test:ui` (Frontend-Flow-Tests für Verify, Suche, Verlauf, Export, Shares)
+- `npm test` (full suite)
+- `npm run test:api` (API/integration tests)
+- `npm run test:ui` (frontend flow tests for verify, search, history, export, shares)
 
 ## Logging
 
-- Strukturierte JSON-Logs mit Events (`http_request_started`, `http_request_finished`, Fehler-Events)
-- Secret-Redaction für API-Keys/Tokens in Log-Daten
-- Optional für Tests: `LOG_SILENT=true`
+- Structured JSON logs with events (`http_request_started`, `http_request_finished`, error events)
+- Secret redaction for API keys/tokens in log data
+- Optional for tests: `LOG_SILENT=true`
 
-## Rollout-Strategie (Read-only -> Write)
+## Rollout Strategy (Read-only -> Write)
 
-- Feature-Flag `admin_write_enabled` steuert Admin-Schreibzugriff auf Konfiguration.
-- Standardmäßig ist der Admin-Bereich damit read-only.
-- Schreibzugriff wird per Flag-Rollout gezielt freigeschaltet (z. B. `enabled=true`, `rollout_percent=100`).
+- Feature flag `admin_write_enabled` controls admin write access to configuration.
+- By default, the admin area is read-only.
+- Write access is enabled in a controlled rollout via flag (for example, `enabled=true`, `rollout_percent=100`).
 
-## Sicherheit
+## Security
 
-- API-Key wird nicht persistiert
-- API-Key wird nur pro Request verwendet
-- Keine API-Keys in Git committen
+- API key is not persisted
+- API key is only used per request
+- Do not commit API keys to Git
 
 ## Render Deployment
 
-1. Repository zu GitHub pushen
-2. In Render neuen `Web Service` aus dem Repo erstellen
+1. Push repository to GitHub
+2. Create a new `Web Service` in Render from the repo
 3. Build Command: `npm install`
 4. Start Command: `npm start`
-5. Umgebungsvariablen setzen (`DATABASE_URL`, optional `ADMIN_TOKEN` fuer Admin-Bereich)
-6. Deploy ausführen
+5. Set environment variables (`DATABASE_URL`, optional `ADMIN_TOKEN` for admin area)
+6. Run deployment
 
 ## Troubleshooting
 
 - `unsupported parameter`
-  - Manche Modelle unterstützen bestimmte Parameter nicht
-  - Lösung: anderes aktuelles GPT-Modell wählen
+  - Some models do not support certain parameters
+  - Solution: choose a different current GPT model
 - `Model cannot ...`
-  - Das Modell unterstützt die Operation (z. B. Websuche) nicht
-  - Lösung: Modell wechseln
+  - The model does not support the operation (for example, web search)
+  - Solution: switch model
 - `Response cannot be parsed in JSON`
-  - App nutzt automatische JSON-Reparatur
-  - Falls weiterhin Fehler: erneut suchen oder anderes Modell wählen
-- Timeout bei Suche
-  - Websuche kann dauern
-  - Lösung: erneut suchen oder anderes Modell wählen
+  - App uses automatic JSON repair
+  - If it still fails: run search again or choose another model
+- Search timeout
+  - Web search can take time
+  - Solution: run search again or choose another model
 
-## Lizenz
+## License
 
-MIT (siehe `package.json`; optional zusätzlich `LICENSE` Datei hinzufügen)
+MIT (see `package.json`; optionally add a separate `LICENSE` file)
