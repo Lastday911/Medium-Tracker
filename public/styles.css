@@ -331,6 +331,133 @@ button:disabled {
   margin-bottom: 0.25rem;
 }
 
+.history-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.history-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+}
+
+.history-main h3 {
+  margin-bottom: 0.35rem;
+}
+
+.history-meta {
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.history-load-btn,
+.history-delete-btn {
+  white-space: nowrap;
+}
+
+.history-empty {
+  margin: 0;
+  padding: 0.75rem 0;
+}
+
+.admin-content {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-block {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  background: var(--color-bg);
+}
+
+.admin-note {
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.admin-create-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.admin-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  font-weight: 500;
+}
+
+.admin-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.admin-list {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+}
+
+.admin-item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem;
+  background: var(--color-surface);
+}
+
+.admin-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.admin-item-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.admin-item-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  font-size: 0.75rem;
+  background: #eef2ff;
+  color: #1e3a8a;
+}
+
 /* Status Messages */
 .status {
   font-size: 0.875rem;
@@ -383,5 +510,20 @@ button:disabled {
   .secondary-btn {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .history-item {
+    flex-direction: column;
+  }
+
+  .history-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-item-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

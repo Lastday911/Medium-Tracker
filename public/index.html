@@ -47,10 +47,8 @@
         </select>
 
         <label for="categorySelect">Kategorie auswählen</label>
-        <select id="categorySelect">
-          <option value="general_trends">Allgemeine KI-Trends</option>
-          <option value="engineering_research">KI-Engineering & Forschung</option>
-          <option value="business_strategy">KI in Business & Produktivität</option>
+        <select id="categorySelect" disabled>
+          <option value="">Kategorien werden geladen...</option>
         </select>
 
         <button id="searchBtn" type="button" disabled>
@@ -79,6 +77,152 @@
         <p id="actionStatus" class="status" role="status" aria-live="polite"></p>
         <article id="bestTopic" class="best-topic"></article>
         <div id="topicList" class="topic-list"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="historyTitle">
+        <h2 id="historyTitle">Verlauf</h2>
+        <p>Hier findest du vergangene Suchlaeufe und kannst erfolgreiche Ergebnisse wieder laden.</p>
+        <div class="history-toolbar">
+          <button id="refreshHistoryBtn" type="button" class="secondary-btn">
+            <span class="btn-icon" aria-hidden="true">↻</span>Verlauf aktualisieren
+          </button>
+        </div>
+        <p id="historyStatus" class="status" role="status" aria-live="polite"></p>
+        <div id="historyList" class="history-list"></div>
+      </section>
+
+      <section class="panel admin-panel" aria-labelledby="adminTitle">
+        <h2 id="adminTitle">Admin</h2>
+        <p>
+          Verwalte Kategorien, Prompt-Templates, Modell-Policies und Feature-Flags.
+          Der Bereich ist nur mit gueltigem <code>ADMIN_TOKEN</code> nutzbar.
+        </p>
+
+        <label for="adminToken">Admin-Token</label>
+        <div class="row">
+          <input
+            id="adminToken"
+            type="password"
+            placeholder="ADMIN_TOKEN"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button id="adminLoadBtn" type="button" class="secondary-btn">
+            <span class="btn-icon" aria-hidden="true">🛠</span>Admin laden
+          </button>
+        </div>
+        <p id="adminStatus" class="status" role="status" aria-live="polite"></p>
+
+        <div id="adminContent" class="admin-content hidden">
+          <article class="admin-block">
+            <h3>Kategorien</h3>
+            <p class="admin-note">Erstellen, bearbeiten und deaktivieren.</p>
+            <p id="adminCategoryMeta" class="admin-note"></p>
+            <div class="admin-create-grid">
+              <input id="adminCategorySlug" type="text" placeholder="Slug, z. B. ai_policy" />
+              <input id="adminCategoryLabel" type="text" placeholder="Label (Deutsch)" />
+              <input id="adminCategorySortOrder" type="number" placeholder="Sortierung (z. B. 40)" />
+              <label class="admin-check">
+                <input id="adminCategoryIsActive" type="checkbox" checked />
+                Aktiv
+              </label>
+            </div>
+            <textarea
+              id="adminCategoryInstruction"
+              rows="4"
+              placeholder="Kategorie-Instruktion fuer den Prompt"
+            ></textarea>
+            <div class="admin-toolbar">
+              <button id="adminCreateCategoryBtn" type="button" class="secondary-btn">
+                Kategorie erstellen
+              </button>
+            </div>
+            <div id="adminCategoryList" class="admin-list"></div>
+          </article>
+
+          <article class="admin-block">
+            <h3>Prompt-Templates</h3>
+            <p id="adminPromptMeta" class="admin-note"></p>
+            <div class="admin-create-grid">
+              <input id="adminPromptTemplateKey" type="text" placeholder="Template-Key (z. B. topic_search_base)" />
+              <input id="adminPromptLocale" type="text" value="de" placeholder="Locale (z. B. de)" />
+              <label class="admin-check">
+                <input id="adminPromptActivate" type="checkbox" checked />
+                Sofort aktivieren
+              </label>
+              <label class="admin-check">
+                <input id="adminPromptSetDefault" type="checkbox" checked />
+                Als Standard-Key setzen
+              </label>
+            </div>
+            <textarea
+              id="adminPromptTemplateText"
+              rows="7"
+              placeholder="Neuer Prompt-Template-Text"
+            ></textarea>
+            <div class="admin-toolbar">
+              <button id="adminCreatePromptVersionBtn" type="button" class="secondary-btn">
+                Neue Version speichern
+              </button>
+            </div>
+            <div id="adminPromptList" class="admin-list"></div>
+          </article>
+
+          <article class="admin-block">
+            <h3>Modell-Policies</h3>
+            <p class="admin-note">Steuert Priorisierung, Tokens und Websuche pro Modell.</p>
+            <div class="admin-create-grid">
+              <input id="adminPolicyModelId" type="text" placeholder="Model-ID (z. B. gpt-5.2)" />
+              <input id="adminPolicyPriority" type="number" value="100" placeholder="Prioritaet" />
+              <select id="adminPolicySearchContext">
+                <option value="low">low</option>
+                <option value="medium">medium</option>
+                <option value="high">high</option>
+              </select>
+              <input id="adminPolicyMaxTokens" type="number" value="1800" placeholder="max_output_tokens" />
+              <input id="adminPolicyMaxRetryTokens" type="number" value="2600" placeholder="max_retry_output_tokens" />
+              <label class="admin-check">
+                <input id="adminPolicyEnabled" type="checkbox" checked />
+                Enabled
+              </label>
+              <label class="admin-check">
+                <input id="adminPolicyWebSearch" type="checkbox" checked />
+                Websuche
+              </label>
+              <label class="admin-check">
+                <input id="adminPolicyStructuredOutput" type="checkbox" checked />
+                Structured Output
+              </label>
+            </div>
+            <div class="admin-toolbar">
+              <button id="adminCreatePolicyBtn" type="button" class="secondary-btn">
+                Policy erstellen
+              </button>
+            </div>
+            <div id="adminPolicyList" class="admin-list"></div>
+          </article>
+
+          <article class="admin-block">
+            <h3>Feature-Flags</h3>
+            <p class="admin-note">Rollout in Prozent pro Feature.</p>
+            <div class="admin-create-grid">
+              <input id="adminFlagKey" type="text" placeholder="Flag-Key (z. B. category_admin_enabled)" />
+              <input id="adminFlagRollout" type="number" min="0" max="100" value="100" placeholder="Rollout %" />
+              <label class="admin-check">
+                <input id="adminFlagEnabled" type="checkbox" checked />
+                Enabled
+              </label>
+              <input id="adminFlagDescription" type="text" placeholder="Beschreibung (optional)" />
+            </div>
+            <textarea id="adminFlagConfig" rows="3" placeholder='Config JSON, z. B. {"rollout_ids":["abc"]}'></textarea>
+            <div class="admin-toolbar">
+              <button id="adminSaveFlagBtn" type="button" class="secondary-btn">
+                Flag speichern
+              </button>
+            </div>
+            <div id="adminFlagList" class="admin-list"></div>
+          </article>
+        </div>
       </section>
     </main>
 

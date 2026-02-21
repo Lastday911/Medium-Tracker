@@ -7,7 +7,13 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node src/server.js"
+    "dev": "node src/server.js",
+    "test": "node --test",
+    "test:api": "node --test test/api/*.test.js",
+    "test:ui": "node --test test/ui/*.test.js",
+    "db:migrate": "node src/db/migrate.js up",
+    "db:seed": "node src/db/migrate.js seed",
+    "db:setup": "node src/db/migrate.js all"
   },
   "keywords": [
     "medium",
@@ -19,6 +25,11 @@
   "license": "MIT",
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "pg": "^8.18.0"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0",
+    "supertest": "^7.1.4"
   }
 }

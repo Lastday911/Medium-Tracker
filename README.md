@@ -53,6 +53,41 @@ Danach im Browser öffnen:
   - Header: `x-openai-api-key: sk-...`
 - `POST /api/find-topics`
   - Body: `{ "apiKey": "sk-...", "model": "gpt-5.2" }`
+- `GET /api/categories`
+
+### Admin-Endpunkte (Header: `x-admin-token: <ADMIN_TOKEN>`)
+
+- `GET /api/admin/categories`
+- `POST /api/admin/categories`
+- `PATCH /api/admin/categories/:slug`
+- `DELETE /api/admin/categories/:slug` (deaktiviert Kategorie)
+- `GET /api/admin/prompt-templates`
+- `POST /api/admin/prompt-templates/versions`
+- `POST /api/admin/prompt-templates/activate`
+- `GET /api/admin/model-policies`
+- `POST /api/admin/model-policies`
+- `PATCH /api/admin/model-policies/:modelId`
+- `DELETE /api/admin/model-policies/:modelId`
+- `GET /api/admin/feature-flags`
+- `PUT /api/admin/feature-flags/:flagKey`
+
+## Tests
+
+- `npm test` (komplette Suite)
+- `npm run test:api` (API-/Integrations-Tests)
+- `npm run test:ui` (Frontend-Flow-Tests für Verify, Suche, Verlauf, Export, Shares)
+
+## Logging
+
+- Strukturierte JSON-Logs mit Events (`http_request_started`, `http_request_finished`, Fehler-Events)
+- Secret-Redaction für API-Keys/Tokens in Log-Daten
+- Optional für Tests: `LOG_SILENT=true`
+
+## Rollout-Strategie (Read-only -> Write)
+
+- Feature-Flag `admin_write_enabled` steuert Admin-Schreibzugriff auf Konfiguration.
+- Standardmäßig ist der Admin-Bereich damit read-only.
+- Schreibzugriff wird per Flag-Rollout gezielt freigeschaltet (z. B. `enabled=true`, `rollout_percent=100`).
 
 ## Sicherheit
 
@@ -66,7 +101,8 @@ Danach im Browser öffnen:
 2. In Render neuen `Web Service` aus dem Repo erstellen
 3. Build Command: `npm install`
 4. Start Command: `npm start`
-5. Deploy ausführen
+5. Umgebungsvariablen setzen (`DATABASE_URL`, optional `ADMIN_TOKEN` fuer Admin-Bereich)
+6. Deploy ausführen
 
 ## Troubleshooting
 
