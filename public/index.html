@@ -3,97 +3,205 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f3efe7" />
     <title>Medium Tracker</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Source+Sans+3:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <div class="page-orb page-orb-left" aria-hidden="true"></div>
+    <div class="page-orb page-orb-right" aria-hidden="true"></div>
+
     <main class="app-shell">
       <section class="hero">
-        <p class="brand">Medium Tracker</p>
-        <h1>Finde trendende KI-Themen für deinen nächsten Medium-Artikel.</h1>
-        <p>
-          Die App prüft deinen OpenAI API-Key, lädt aktuelle Modelle und
-          durchsucht mit dem gewählten Modell das Web nach komplexen,
-          erklärungsbedürftigen KI-Themen.
-        </p>
+        <div class="hero-copy">
+          <p class="brand">Medium Tracker</p>
+          <h1>Recherche fuer starke KI-Artikel, nicht fuer generische Themenlisten.</h1>
+          <p class="hero-text">
+            Verifiziere deinen OpenAI API-Key serverseitig, lade aktuelle Modelle und
+            finde daraus genau die Themen, die auf Medium gerade Substanz, Tiefe und
+            Relevanz haben.
+          </p>
+          <div class="hero-pills" aria-label="Produktmerkmale">
+            <span class="hero-pill">OpenAI Responses API</span>
+            <span class="hero-pill">Webquellen sichtbar</span>
+            <span class="hero-pill">Maximal 5 Themen</span>
+          </div>
+        </div>
+
+        <aside class="hero-panel" aria-label="Ablauf">
+          <p class="eyebrow">Ablauf</p>
+          <ol class="hero-steps">
+            <li>
+              <span class="step-index">01</span>
+              <div>
+                <strong>API-Key pruefen</strong>
+                <p>Verifikation ueber den Server, kein Persistieren des Keys.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-index">02</span>
+              <div>
+                <strong>Modell auswaehlen</strong>
+                <p>Aktuelle Textmodelle werden direkt aus OpenAI geladen.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-index">03</span>
+              <div>
+                <strong>Themen recherchieren</strong>
+                <p>Websuche plus strukturierter Output fuer klare, teilbare Ergebnisse.</p>
+              </div>
+            </li>
+          </ol>
+          <p id="appModeNotice" class="runtime-note hidden" role="status" aria-live="polite"></p>
+        </aside>
       </section>
 
-      <section class="panel" aria-labelledby="setupTitle">
-        <h2 id="setupTitle" class="sr-only">Konfiguration</h2>
-        <label for="apiKey">OpenAI API-Key</label>
-        <div class="row">
-          <input
-            id="apiKey"
-            type="password"
-            placeholder="sk-..."
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <button id="verifyBtn" type="button">
-            <span class="btn-icon" aria-hidden="true">✓</span>API verifizieren
+      <section class="workspace">
+        <section class="panel panel-setup" aria-labelledby="setupTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Setup</p>
+              <h2 id="setupTitle">OpenAI verbinden</h2>
+            </div>
+            <div class="setup-pills" aria-label="Technische Hinweise">
+              <span class="setup-pill">JSON-Schema</span>
+              <span class="setup-pill">Web Search</span>
+              <span class="setup-pill">Deutsch</span>
+            </div>
+          </div>
+
+          <div class="field-block">
+            <label for="apiKey">OpenAI API-Key</label>
+            <p class="field-help">
+              Der Key wird nur fuer die aktuelle Anfrage genutzt und nicht gespeichert.
+            </p>
+            <div class="row">
+              <input
+                id="apiKey"
+                type="password"
+                placeholder="sk-..."
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button id="verifyBtn" type="button">
+                <span class="btn-icon" aria-hidden="true">CHK</span>API verifizieren
+              </button>
+            </div>
+            <p id="verifyStatus" class="status" role="status" aria-live="polite"></p>
+          </div>
+
+          <div class="field-block">
+            <label for="modelSelect">Modell auswaehlen</label>
+            <select id="modelSelect" disabled>
+              <option value="">Bitte zuerst API-Key verifizieren</option>
+            </select>
+          </div>
+
+          <div class="field-block">
+            <label for="categorySelect">Kategorie auswaehlen</label>
+            <select id="categorySelect" disabled>
+              <option value="">Kategorien werden geladen...</option>
+            </select>
+          </div>
+
+          <button id="searchBtn" type="button" disabled>
+            <span class="btn-icon" aria-hidden="true">RUN</span>Themen recherchieren
           </button>
-        </div>
-        <p id="verifyStatus" class="status" role="status" aria-live="polite"></p>
+        </section>
 
-        <label for="modelSelect">Modell auswählen</label>
-        <select id="modelSelect" disabled>
-          <option value="">Bitte zuerst API-Key verifizieren</option>
-        </select>
-
-        <label for="categorySelect">Kategorie auswählen</label>
-        <select id="categorySelect" disabled>
-          <option value="">Kategorien werden geladen...</option>
-        </select>
-
-        <button id="searchBtn" type="button" disabled>
-          <span class="btn-icon" aria-hidden="true">🔎</span>Suche mir nach einem Thema
-        </button>
+        <aside class="panel panel-guide" aria-label="Ergebnisumfang">
+          <p class="eyebrow">Output</p>
+          <h2>Was du bekommst</h2>
+          <div class="guide-grid">
+            <article class="guide-card">
+              <strong>Top-Empfehlung</strong>
+              <p>Titel, Summary und vier Fokus-Punkte fuer den Artikelkern.</p>
+            </article>
+            <article class="guide-card">
+              <strong>Weitere Themen</strong>
+              <p>Bis zu vier Alternativen mit Warum-jetzt, Komplexitaet und Winkeln.</p>
+            </article>
+            <article class="guide-card">
+              <strong>Quellenlage</strong>
+              <p>Erkannte Webquellen direkt im Ergebnis fuer schnelles Fact-Checking.</p>
+            </article>
+            <article class="guide-card">
+              <strong>Distribution</strong>
+              <p>Kopieren, Telegram, WhatsApp, JSON und Markdown ohne Zusatzschritte.</p>
+            </article>
+          </div>
+        </aside>
       </section>
 
       <section id="results" class="results hidden" aria-live="polite">
-        <div id="resultActions" class="result-actions hidden" role="group" aria-label="Ergebnisaktionen">
+        <div
+          id="resultActions"
+          class="result-actions hidden"
+          role="group"
+          aria-label="Ergebnisaktionen"
+        >
           <button id="copyBtn" type="button" class="secondary-btn">
-            <span class="btn-icon" aria-hidden="true">📋</span>Text kopieren
+            <span class="btn-icon" aria-hidden="true">TXT</span>Text kopieren
           </button>
           <button id="telegramBtn" type="button" class="secondary-btn">
-            <span class="btn-icon" aria-hidden="true">✈</span>In Telegram senden
+            <span class="btn-icon" aria-hidden="true">TG</span>In Telegram senden
           </button>
           <button id="whatsappBtn" type="button" class="secondary-btn">
-            <span class="btn-icon" aria-hidden="true">💬</span>An WhatsApp senden
+            <span class="btn-icon" aria-hidden="true">WA</span>An WhatsApp senden
           </button>
           <button id="exportJsonBtn" type="button" class="secondary-btn">
-            <span class="btn-icon" aria-hidden="true">{ }</span>Als JSON speichern
+            <span class="btn-icon" aria-hidden="true">JSN</span>Als JSON speichern
           </button>
           <button id="exportMdBtn" type="button" class="secondary-btn">
-            <span class="btn-icon" aria-hidden="true">📝</span>Als Markdown speichern
+            <span class="btn-icon" aria-hidden="true">MD</span>Als Markdown speichern
           </button>
         </div>
         <p id="actionStatus" class="status" role="status" aria-live="polite"></p>
         <article id="bestTopic" class="best-topic"></article>
+        <article id="sourcePanel" class="result-sources hidden" aria-labelledby="sourceTitle">
+          <div class="section-head">
+            <p class="eyebrow">Quellen</p>
+            <h2 id="sourceTitle">Web-Recherche</h2>
+          </div>
+          <div id="sourceList" class="source-list"></div>
+        </article>
         <div id="topicList" class="topic-list"></div>
       </section>
 
-      <section class="panel" aria-labelledby="historyTitle">
-        <h2 id="historyTitle">Verlauf</h2>
-        <p>Hier findest du vergangene Suchlaeufe und kannst erfolgreiche Ergebnisse wieder laden.</p>
-        <div class="history-toolbar">
-          <button id="refreshHistoryBtn" type="button" class="secondary-btn">
-            <span class="btn-icon" aria-hidden="true">↻</span>Verlauf aktualisieren
-          </button>
+      <section id="historyPanel" class="panel panel-history" aria-labelledby="historyTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">History</p>
+            <h2 id="historyTitle">Verlauf</h2>
+          </div>
+          <div class="history-toolbar">
+            <button id="refreshHistoryBtn" type="button" class="secondary-btn">
+              <span class="btn-icon" aria-hidden="true">SYNC</span>Verlauf aktualisieren
+            </button>
+          </div>
         </div>
+        <p class="panel-copy">
+          Lade erfolgreiche Suchlaeufe erneut oder raeume alte Ergebnisse direkt aus dem Verlauf.
+        </p>
         <p id="historyStatus" class="status" role="status" aria-live="polite"></p>
         <div id="historyList" class="history-list"></div>
       </section>
 
-      <section class="panel admin-panel" aria-labelledby="adminTitle">
-        <h2 id="adminTitle">Admin</h2>
-        <p>
+      <section id="adminPanel" class="panel admin-panel" aria-labelledby="adminTitle">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Admin</p>
+            <h2 id="adminTitle">Konfiguration</h2>
+          </div>
+        </div>
+        <p class="panel-copy">
           Verwalte Kategorien, Prompt-Templates, Modell-Policies und Feature-Flags.
           Der Bereich ist nur mit gueltigem <code>ADMIN_TOKEN</code> nutzbar.
         </p>
@@ -108,7 +216,7 @@
             spellcheck="false"
           />
           <button id="adminLoadBtn" type="button" class="secondary-btn">
-            <span class="btn-icon" aria-hidden="true">🛠</span>Admin laden
+            <span class="btn-icon" aria-hidden="true">ADM</span>Admin laden
           </button>
         </div>
         <p id="adminStatus" class="status" role="status" aria-live="polite"></p>
@@ -144,7 +252,11 @@
             <h3>Prompt-Templates</h3>
             <p id="adminPromptMeta" class="admin-note"></p>
             <div class="admin-create-grid">
-              <input id="adminPromptTemplateKey" type="text" placeholder="Template-Key (z. B. topic_search_base)" />
+              <input
+                id="adminPromptTemplateKey"
+                type="text"
+                placeholder="Template-Key (z. B. topic_search_base)"
+              />
               <input id="adminPromptLocale" type="text" value="de" placeholder="Locale (z. B. de)" />
               <label class="admin-check">
                 <input id="adminPromptActivate" type="checkbox" checked />
@@ -172,7 +284,7 @@
             <h3>Modell-Policies</h3>
             <p class="admin-note">Steuert Priorisierung, Tokens und Websuche pro Modell.</p>
             <div class="admin-create-grid">
-              <input id="adminPolicyModelId" type="text" placeholder="Model-ID (z. B. gpt-5.2)" />
+              <input id="adminPolicyModelId" type="text" placeholder="Model-ID (z. B. gpt-5.4)" />
               <input id="adminPolicyPriority" type="number" value="100" placeholder="Prioritaet" />
               <select id="adminPolicySearchContext">
                 <option value="low">low</option>
@@ -180,7 +292,12 @@
                 <option value="high">high</option>
               </select>
               <input id="adminPolicyMaxTokens" type="number" value="1800" placeholder="max_output_tokens" />
-              <input id="adminPolicyMaxRetryTokens" type="number" value="2600" placeholder="max_retry_output_tokens" />
+              <input
+                id="adminPolicyMaxRetryTokens"
+                type="number"
+                value="2600"
+                placeholder="max_retry_output_tokens"
+              />
               <label class="admin-check">
                 <input id="adminPolicyEnabled" type="checkbox" checked />
                 Enabled
@@ -206,15 +323,30 @@
             <h3>Feature-Flags</h3>
             <p class="admin-note">Rollout in Prozent pro Feature.</p>
             <div class="admin-create-grid">
-              <input id="adminFlagKey" type="text" placeholder="Flag-Key (z. B. category_admin_enabled)" />
-              <input id="adminFlagRollout" type="number" min="0" max="100" value="100" placeholder="Rollout %" />
+              <input
+                id="adminFlagKey"
+                type="text"
+                placeholder="Flag-Key (z. B. category_admin_enabled)"
+              />
+              <input
+                id="adminFlagRollout"
+                type="number"
+                min="0"
+                max="100"
+                value="100"
+                placeholder="Rollout %"
+              />
               <label class="admin-check">
                 <input id="adminFlagEnabled" type="checkbox" checked />
                 Enabled
               </label>
               <input id="adminFlagDescription" type="text" placeholder="Beschreibung (optional)" />
             </div>
-            <textarea id="adminFlagConfig" rows="3" placeholder='Config JSON, z. B. {"rollout_ids":["abc"]}'></textarea>
+            <textarea
+              id="adminFlagConfig"
+              rows="3"
+              placeholder='Config JSON, z. B. {"rollout_ids":["abc"]}'
+            ></textarea>
             <div class="admin-toolbar">
               <button id="adminSaveFlagBtn" type="button" class="secondary-btn">
                 Flag speichern

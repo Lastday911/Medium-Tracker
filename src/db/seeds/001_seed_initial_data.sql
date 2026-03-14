@@ -147,12 +147,13 @@ INSERT INTO model_policies (
   enable_structured_output
 )
 VALUES
-  ('gpt-5.2', TRUE, 1, TRUE, 'low', 1800, 2600, TRUE),
-  ('gpt-5-mini', TRUE, 2, TRUE, 'low', 1800, 2600, TRUE),
-  ('gpt-5-nano', TRUE, 3, TRUE, 'low', 1800, 2600, TRUE),
-  ('gpt-5.1', TRUE, 4, TRUE, 'low', 1800, 2600, TRUE),
-  ('gpt-5', TRUE, 5, TRUE, 'low', 1800, 2600, TRUE),
-  ('gpt-4.1', TRUE, 6, TRUE, 'low', 1800, 2600, TRUE)
+  ('gpt-5.4', TRUE, 1, TRUE, 'low', 1800, 2600, TRUE),
+  ('gpt-5', TRUE, 2, TRUE, 'low', 1800, 2600, TRUE),
+  ('gpt-5-mini', TRUE, 3, TRUE, 'low', 1800, 2600, TRUE),
+  ('gpt-5-nano', TRUE, 4, TRUE, 'low', 1800, 2600, TRUE),
+  ('gpt-4.1', TRUE, 5, TRUE, 'low', 1800, 2600, TRUE),
+  ('o4-mini', TRUE, 6, TRUE, 'low', 1800, 2600, TRUE),
+  ('o3', TRUE, 7, TRUE, 'low', 1800, 2600, TRUE)
 ON CONFLICT (model_id)
 DO UPDATE SET
   enabled = EXCLUDED.enabled,

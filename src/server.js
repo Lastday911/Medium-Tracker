@@ -1,5 +1,6 @@
+require("./load-env");
+
 const express = require("express");
-const cors = require("cors");
 const crypto = require("crypto");
 const path = require("path");
 const runtimeConfigStore = require("./db/runtime-config");
@@ -13,9 +14,17 @@ const OPENAI_BASE_URL = "https://api.openai.com/v1";
 const FALLBACK_MODEL_TIMEOUT_MS = 30000;
 const ADMIN_WRITE_FLAG_KEY = "admin_write_enabled";
 const HISTORY_FLAG_KEY = "history_enabled";
+const REQUEST_ID_MAX_LENGTH = 128;
 
-app.use(cors());
+app.disable("x-powered-by");
 app.use(requestContextMiddleware);
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  next();
+});
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "..", "public")));
 
@@ -103,6 +112,13 @@ function deleteModelPolicy(modelId) {
   return adminStore.deleteModelPolicy(modelId);
 }
 
+function normalizeHeaderToken(value, maxLength = REQUEST_ID_MAX_LENGTH) {
+  return String(value || "")
+    .trim()
+    .replace(/[^\w.-]/g, "")
+    .slice(0, maxLength);
+}
+
 function listFeatureFlagsAdmin() {
   return adminStore.listFeatureFlagsAdmin();
 }
@@ -137,6 +153,20 @@ function isUnsupportedFormatError(message) {
   );
 }
 
+function isUnsupportedParameterError(message, parameterName) {
+  const lower = String(message || "").toLowerCase();
+  const target = String(parameterName || "").toLowerCase();
+  if (!target) {
+    return false;
+  }
+  return (
+    (lower.includes("unsupported parameter") ||
+      lower.includes("unknown parameter") ||
+      lower.includes("unrecognized parameter")) &&
+    lower.includes(target)
+  );
+}
+
 function isModelCannotError(message) {
   const lower = String(message || "").toLowerCase();
   return (
@@ -165,10 +195,10 @@ function mapOpenAIErrorMessage(message) {
     lower.includes("tool not supported") ||
     lower.includes("unsupported tool")
   ) {
-    return "Das ausgewählte Modell scheint Websuche/Tools nicht zu unterstützen. Bitte ein aktuelles GPT-5-Modell wählen.";
+    return "Das ausgewaehlte Modell scheint Websuche/Tools nicht zu unterstuetzen. Bitte ein aktuelles Modell wie gpt-5, gpt-5-mini oder o4-mini waehlen.";
   }
   if (isModelCannotError(raw)) {
-    return "Dieses Modell kann für diese Suche nicht verwendet werden. Bitte ein anderes aktuelles GPT-Modell wählen.";
+    return "Dieses Modell kann fuer diese Suche nicht verwendet werden. Bitte ein anderes aktuelles Modell waehlen.";
   }
   if (lower.includes("rate limit") || lower.includes("429")) {
     return "Rate Limit erreicht. Bitte kurz warten und erneut versuchen.";
@@ -287,6 +317,147 @@ function toText(value) {
   return String(value).trim();
 }
 
+function normalizeSourceUrl(value) {
+  const raw = toText(value);
+  if (!raw) {
+    return "";
+  }
+
+  try {
+    const url = new URL(raw);
+    url.hash = "";
+    return url.toString();
+  } catch (_error) {
+    return raw;
+  }
+}
+
+function getSourceDomain(value) {
+  const normalizedUrl = normalizeSourceUrl(value);
+  if (!normalizedUrl) {
+    return "";
+  }
+
+  try {
+    return new URL(normalizedUrl).hostname.replace(/^www\./i, "");
+  } catch (_error) {
+    return "";
+  }
+}
+
+function createWebSourceEntry(candidate) {
+  const normalizedUrl = normalizeSourceUrl(candidate?.url);
+  if (!normalizedUrl) {
+    return null;
+  }
+
+  return {
+    url: normalizedUrl,
+    title: toText(candidate?.title),
+    domain: getSourceDomain(normalizedUrl),
+    type: toText(candidate?.type) || "url"
+  };
+}
+
+function mergeWebSources(...lists) {
+  const byUrl = new Map();
+
+  for (const list of lists) {
+    if (!Array.isArray(list)) {
+      continue;
+    }
+
+    for (const source of list) {
+      const entry = createWebSourceEntry(source);
+      if (!entry) {
+        continue;
+      }
+
+      const existing = byUrl.get(entry.url);
+      if (!existing) {
+        byUrl.set(entry.url, entry);
+        continue;
+      }
+
+      byUrl.set(entry.url, {
+        ...existing,
+        title: existing.title || entry.title,
+        domain: existing.domain || entry.domain,
+        type: existing.type || entry.type
+      });
+    }
+  }
+
+  return Array.from(byUrl.values()).sort((left, right) => {
+    const leftKey = `${left.title || left.domain || left.url}\u0000${left.url}`;
+    const rightKey = `${right.title || right.domain || right.url}\u0000${right.url}`;
+    return leftKey.localeCompare(rightKey, "de");
+  });
+}
+
+function extractAnnotatedWebSources(payload) {
+  const outputs = Array.isArray(payload?.output) ? payload.output : [];
+  const sources = [];
+
+  for (const output of outputs) {
+    const content = Array.isArray(output?.content) ? output.content : [];
+    for (const item of content) {
+      const annotations = Array.isArray(item?.annotations) ? item.annotations : [];
+      for (const annotation of annotations) {
+        const source = createWebSourceEntry({
+          url: annotation?.url || annotation?.uri,
+          title: annotation?.title,
+          type: annotation?.type
+        });
+        if (source) {
+          sources.push(source);
+        }
+      }
+    }
+  }
+
+  return sources;
+}
+
+function extractToolWebSources(payload) {
+  const outputs = Array.isArray(payload?.output) ? payload.output : [];
+  const sources = [];
+
+  for (const output of outputs) {
+    if (output?.type !== "web_search_call") {
+      continue;
+    }
+
+    const actionSources = Array.isArray(output?.action?.sources)
+      ? output.action.sources
+      : [];
+    for (const actionSource of actionSources) {
+      const source = createWebSourceEntry({
+        url: actionSource?.url,
+        title: actionSource?.title,
+        type: actionSource?.type
+      });
+      if (source) {
+        sources.push(source);
+      }
+    }
+  }
+
+  return sources;
+}
+
+function extractWebSources(payloads) {
+  let collected = [];
+  for (const payload of Array.isArray(payloads) ? payloads : []) {
+    collected = mergeWebSources(
+      collected,
+      extractToolWebSources(payload),
+      extractAnnotatedWebSources(payload)
+    );
+  }
+  return collected;
+}
+
 function normalizeTopicPayload(parsed, limits) {
   const topicCount = Number.isInteger(limits?.topicCount) ? limits.topicCount : 5;
   const articleAnglesCount = Number.isInteger(limits?.articleAnglesCount)
@@ -346,7 +517,8 @@ function resolveModelPolicy(modelId, runtimeConfig) {
     }
     if (
       normalizedModelId === policyId ||
-      normalizedModelId.startsWith(`${policyId}-`)
+      normalizedModelId.startsWith(`${policyId}-`) ||
+      normalizedModelId.startsWith(`${policyId}.`)
     ) {
       if (!bestMatch || policyId.length > bestMatch.modelId.length) {
         bestMatch = policy;
@@ -355,6 +527,76 @@ function resolveModelPolicy(modelId, runtimeConfig) {
   }
 
   return bestMatch;
+}
+
+function inferModelPolicy(modelId, runtimeConfig) {
+  if (!isLikelyTextModel(modelId)) {
+    return null;
+  }
+
+  const existing = resolveModelPolicy(modelId, runtimeConfig);
+  if (existing) {
+    return existing;
+  }
+
+  const normalizedModelId = String(modelId || "").toLowerCase();
+  const familyHints = [
+    "gpt-5.4",
+    "gpt-5-mini",
+    "gpt-5-nano",
+    "gpt-5",
+    "gpt-4.1",
+    "gpt-4o",
+    "o4-mini",
+    "o3"
+  ];
+
+  for (const hint of familyHints) {
+    const hintedPolicy = runtimeConfig.modelPoliciesById[hint];
+    if (
+      hintedPolicy &&
+      hintedPolicy.enabled &&
+      (normalizedModelId === hint ||
+        normalizedModelId.startsWith(`${hint}-`) ||
+        normalizedModelId.startsWith(`${hint}.`))
+    ) {
+      return {
+        ...hintedPolicy,
+        modelId
+      };
+    }
+  }
+
+  const firstWebSearchPolicy = runtimeConfig.modelPolicies.find(
+    (policy) => policy.enabled && policy.supportsWebSearch
+  );
+  if (firstWebSearchPolicy) {
+    return {
+      ...firstWebSearchPolicy,
+      modelId,
+      priority: Number(firstWebSearchPolicy.priority || 1000) + 1000
+    };
+  }
+
+  return {
+    modelId,
+    enabled: true,
+    priority: 5000,
+    supportsWebSearch: true,
+    searchContextSize: "low",
+    maxOutputTokens: 1800,
+    maxRetryOutputTokens: 2600,
+    enableStructuredOutput: true
+  };
+}
+
+async function getOptionalRuntimeConfig() {
+  try {
+    return await getRuntimeConfig();
+  } catch (error) {
+    logger.warn("optional_runtime_config_unavailable", { error });
+    return null;
+  }
 }
 
 function createHttpError(message, statusCode) {
@@ -409,20 +651,20 @@ function assertAdminAccess(req) {
 }
 
 function readRolloutId(req) {
-  const explicit = String(req.header("x-rollout-id") || "").trim();
+  const explicit = normalizeHeaderToken(req.header("x-rollout-id"));
   if (explicit) {
-    return explicit.slice(0, 128);
+    return explicit;
   }
 
-  const forwarded = String(req.header("x-forwarded-for") || "")
-    .split(",")[0]
-    .trim();
+  const forwarded = req.app.get("trust proxy")
+    ? normalizeHeaderToken(String(req.header("x-forwarded-for") || "").split(",")[0])
+    : "";
   if (forwarded) {
-    return forwarded.slice(0, 128);
+    return forwarded;
   }
 
-  const ip = String(req.ip || "").trim();
-  return ip ? ip.slice(0, 128) : "anonymous";
+  const ip = normalizeHeaderToken(req.ip);
+  return ip || "anonymous";
 }
 
 function computeRolloutBucket(flagKey, rolloutId) {
@@ -565,7 +807,7 @@ async function requestTopicIdeas({ apiKey, model, category, runtimeConfig }) {
     );
   }
 
-  const modelPolicy = resolveModelPolicy(model, runtimeConfig);
+  const modelPolicy = inferModelPolicy(model, runtimeConfig);
   if (!modelPolicy) {
     throw runtimeConfigError(
       "Das gewählte Modell ist nicht freigegeben. Bitte ein verfügbares Modell wählen.",
@@ -616,7 +858,63 @@ async function requestTopicIdeas({ apiKey, model, category, runtimeConfig }) {
     return { response, payload };
   };
 
-  const baseBody = {
+  const searchRequestCompat = {
+    includeWebSearchSources: true,
+    toolChoiceAuto: true
+  };
+
+  function applySearchRequestCompat(body) {
+    const hasTools = Array.isArray(body?.tools) && body.tools.length > 0;
+    if (!hasTools) {
+      return body;
+    }
+
+    const nextBody = { ...body };
+    if (searchRequestCompat.includeWebSearchSources) {
+      nextBody.include = ["web_search_call.action.sources"];
+    }
+    if (searchRequestCompat.toolChoiceAuto) {
+      nextBody.tool_choice = "auto";
+    }
+    return nextBody;
+  }
+
+  async function runCompatibleResponsesRequest(body) {
+    let requestResult = await runResponsesRequest(applySearchRequestCompat(body));
+    let attempts = 0;
+
+    while (!requestResult.response.ok && attempts < 2) {
+      const upstreamMessage = requestResult.payload?.error?.message || "";
+      let changed = false;
+
+      if (
+        searchRequestCompat.includeWebSearchSources &&
+        isUnsupportedParameterError(upstreamMessage, "include")
+      ) {
+        searchRequestCompat.includeWebSearchSources = false;
+        changed = true;
+      }
+
+      if (
+        searchRequestCompat.toolChoiceAuto &&
+        isUnsupportedParameterError(upstreamMessage, "tool_choice")
+      ) {
+        searchRequestCompat.toolChoiceAuto = false;
+        changed = true;
+      }
+
+      if (!changed) {
+        break;
+      }
+
+      requestResult = await runResponsesRequest(applySearchRequestCompat(body));
+      attempts += 1;
+    }
+
+    return requestResult;
+  }
+
+  const buildSearchBody = (overrides = {}) => ({
     model,
     input: prompt,
     max_output_tokens: modelPolicy.maxOutputTokens,
@@ -625,8 +923,11 @@ async function requestTopicIdeas({ apiKey, model, category, runtimeConfig }) {
         type: "web_search",
         search_context_size: modelPolicy.searchContextSize
       }
-    ]
-  };
+    ],
+    ...overrides
+  });
+
+  const baseBody = buildSearchBody();
 
   const structuredBody = modelPolicy.enableStructuredOutput
     ? {
@@ -642,27 +943,38 @@ async function requestTopicIdeas({ apiKey, model, category, runtimeConfig }) {
       }
     : baseBody;
 
-  let requestResult = await runResponsesRequest(structuredBody);
+  const searchPayloads = [];
+  let requestResult = await runCompatibleResponsesRequest(structuredBody);
+  if (requestResult.response.ok) {
+    searchPayloads.push(requestResult.payload);
+  }
 
   if (!requestResult.response.ok) {
     const upstreamMessage = requestResult.payload?.error?.message || "";
     if (modelPolicy.enableStructuredOutput && isUnsupportedFormatError(upstreamMessage)) {
-      requestResult = await runResponsesRequest({
-        ...baseBody,
-        input: [
+      requestResult = await runCompatibleResponsesRequest(
+        buildSearchBody({
+          input: [
           prompt,
           "Antwort ausschließlich als valides JSON-Objekt im bereits geforderten Schema."
-        ].join("\n")
-      });
+          ].join("\n")
+        })
+      );
+      if (requestResult.response.ok) {
+        searchPayloads.push(requestResult.payload);
+      }
     }
   } else if (
     requestResult.payload?.status === "incomplete" &&
     requestResult.payload?.incomplete_details?.reason === "max_output_tokens"
   ) {
-    requestResult = await runResponsesRequest({
+    requestResult = await runCompatibleResponsesRequest({
       ...structuredBody,
       max_output_tokens: modelPolicy.maxRetryOutputTokens
     });
+    if (requestResult.response.ok) {
+      searchPayloads.push(requestResult.payload);
+    }
   }
 
   const { response, payload } = requestResult;
@@ -731,7 +1043,11 @@ async function requestTopicIdeas({ apiKey, model, category, runtimeConfig }) {
       "Die Antwort enthielt keine verwertbaren Themen. Bitte erneut versuchen."
     );
   }
-  return normalized;
+
+  return {
+    ...normalized,
+    sources: extractWebSources(searchPayloads)
+  };
 }
 
 app.get("/health", (_req, res) => {
@@ -749,14 +1065,18 @@ app.post("/api/verify-key", async (req, res) => {
   }
 
   try {
-    const runtimeConfig = await getRuntimeConfig();
-    await fetchOpenAIModels(apiKey, runtimeConfig.settings.modelTimeoutMs);
+    const runtimeConfig = await getOptionalRuntimeConfig();
+    const timeoutMs = runtimeConfig?.settings?.modelTimeoutMs || FALLBACK_MODEL_TIMEOUT_MS;
+    await fetchOpenAIModels(apiKey, timeoutMs);
     return res.json({ ok: true, message: "API-Key erfolgreich verifiziert." });
   } catch (error) {
     const status = error.statusCode || 401;
     return res.status(status).json({
       ok: false,
-      message: `Verifizierung fehlgeschlagen: ${error.message}`
+      message:
+        status >= 500
+          ? "Verifizierung fehlgeschlagen. Bitte spaeter erneut versuchen."
+          : `Verifizierung fehlgeschlagen: ${error.message}`
     });
   }
 });
@@ -772,44 +1092,61 @@ app.get("/api/models", async (req, res) => {
   }
 
   try {
-    const runtimeConfig = await getRuntimeConfig();
-    const models = await fetchOpenAIModels(apiKey, runtimeConfig.settings.modelTimeoutMs);
-    const latestModels = models
-      .filter((m) => isLikelyTextModel(m.id))
-      .map((modelInfo) => ({
-        modelInfo,
-        policy: resolveModelPolicy(modelInfo.id, runtimeConfig)
-      }))
-      .filter((entry) => Boolean(entry.policy))
-      .sort((a, b) => {
-        const rank = a.policy.priority - b.policy.priority;
-        if (rank !== 0) {
-          return rank;
-        }
-        return (b.modelInfo?.created || 0) - (a.modelInfo?.created || 0);
-      })
-      .slice(0, 30)
-      .map(({ modelInfo }) => ({
-        id: modelInfo.id,
-        created: modelInfo.created || null,
-        ownedBy: modelInfo.owned_by || null
-      }));
+    const runtimeConfig = await getOptionalRuntimeConfig();
+    const timeoutMs = runtimeConfig?.settings?.modelTimeoutMs || FALLBACK_MODEL_TIMEOUT_MS;
+    const models = await fetchOpenAIModels(apiKey, timeoutMs);
+    const textModels = models.filter((m) => isLikelyTextModel(m.id));
+    const latestModels = runtimeConfig
+      ? textModels
+          .map((modelInfo) => ({
+            modelInfo,
+            policy: inferModelPolicy(modelInfo.id, runtimeConfig)
+          }))
+          .filter((entry) => Boolean(entry.policy))
+          .sort((a, b) => {
+            const rank = a.policy.priority - b.policy.priority;
+            if (rank !== 0) {
+              return rank;
+            }
+            return (b.modelInfo?.created || 0) - (a.modelInfo?.created || 0);
+          })
+          .slice(0, 30)
+          .map(({ modelInfo }) => ({
+            id: modelInfo.id,
+            created: modelInfo.created || null,
+            ownedBy: modelInfo.owned_by || null
+          }))
+      : textModels.slice(0, 30).map((modelInfo) => ({
+          id: modelInfo.id,
+          created: modelInfo.created || null,
+          ownedBy: modelInfo.owned_by || null
+        }));
 
     return res.json({ ok: true, models: latestModels });
   } catch (error) {
     const status = error.statusCode || 500;
     return res.status(status).json({
       ok: false,
-      message: `Modelle konnten nicht geladen werden: ${error.message}`
+      message:
+        status >= 500
+          ? "Modelle konnten nicht geladen werden. Bitte spaeter erneut versuchen."
+          : `Modelle konnten nicht geladen werden: ${error.message}`
     });
   }
 });
 
-app.get("/api/categories", async (_req, res) => {
+app.get("/api/categories", async (req, res) => {
   try {
     const runtimeConfig = await getRuntimeConfig();
     return res.json({
       ok: true,
+      runtimeMode: runtimeConfig.source || "database",
+      historyEnabled: isFeatureEnabledForRequest(
+        runtimeConfig,
+        HISTORY_FLAG_KEY,
+        req,
+        true
+      ),
       defaultCategory: runtimeConfig.defaultCategory,
       categories: runtimeConfig.categories.map((category) => ({
         slug: category.slug,
@@ -821,7 +1158,10 @@ app.get("/api/categories", async (_req, res) => {
     const status = error.statusCode || 500;
     return res.status(status).json({
       ok: false,
-      message: `Kategorien konnten nicht geladen werden: ${error.message}`
+      message:
+        status >= 500
+          ? "Kategorien konnten nicht geladen werden. Bitte spaeter erneut versuchen."
+          : `Kategorien konnten nicht geladen werden: ${error.message}`
     });
   }
 });
@@ -836,7 +1176,10 @@ function respondWithRouteError(res, error, prefixMessage) {
   });
   return res.status(status).json({
     ok: false,
-    message: `${prefixMessage}: ${error.message}`
+    message:
+      status >= 500
+        ? `${prefixMessage}. Bitte spaeter erneut versuchen.`
+        : `${prefixMessage}: ${error.message}`
   });
 }
 
@@ -1294,7 +1637,10 @@ app.get("/api/history", async (req, res) => {
     const status = error.statusCode || 500;
     return res.status(status).json({
       ok: false,
-      message: `Verlauf konnte nicht geladen werden: ${error.message}`
+      message:
+        status >= 500
+          ? "Verlauf konnte nicht geladen werden. Bitte spaeter erneut versuchen."
+          : `Verlauf konnte nicht geladen werden: ${error.message}`
     });
   }
 });
@@ -1316,7 +1662,10 @@ app.get("/api/history/:id", async (req, res) => {
     const status = error.statusCode || 500;
     return res.status(status).json({
       ok: false,
-      message: `Verlaufseintrag konnte nicht geladen werden: ${error.message}`
+      message:
+        status >= 500
+          ? "Verlaufseintrag konnte nicht geladen werden. Bitte spaeter erneut versuchen."
+          : `Verlaufseintrag konnte nicht geladen werden: ${error.message}`
     });
   }
 });
@@ -1338,7 +1687,10 @@ app.delete("/api/history/:id", async (req, res) => {
     const status = error.statusCode || 500;
     return res.status(status).json({
       ok: false,
-      message: `Verlaufseintrag konnte nicht geloescht werden: ${error.message}`
+      message:
+        status >= 500
+          ? "Verlaufseintrag konnte nicht geloescht werden. Bitte spaeter erneut versuchen."
+          : `Verlaufseintrag konnte nicht geloescht werden: ${error.message}`
     });
   }
 });
@@ -1400,7 +1752,8 @@ app.post("/api/find-topics", async (req, res) => {
       category: selectedCategory,
       categoryLabel: categoryConfig.label,
       topics: result.topics,
-      bestRecommendation: result.bestRecommendation
+      bestRecommendation: result.bestRecommendation,
+      sources: result.sources
     };
 
     if (historyEnabledForRequest) {
@@ -1415,7 +1768,8 @@ app.post("/api/find-topics", async (req, res) => {
           category: selectedCategory,
           categoryLabel: categoryConfig.label,
           topics: result.topics,
-          bestRecommendation: result.bestRecommendation
+          bestRecommendation: result.bestRecommendation,
+          sources: result.sources
         },
         latencyMs: Date.now() - startedAtMs,
         status: "success"
@@ -1441,7 +1795,10 @@ app.post("/api/find-topics", async (req, res) => {
     const status = error.statusCode || 500;
     return res.status(status).json({
       ok: false,
-      message: `Themensuche fehlgeschlagen: ${error.message}`
+      message:
+        status >= 500
+          ? "Themensuche fehlgeschlagen. Bitte spaeter erneut versuchen."
+          : `Themensuche fehlgeschlagen: ${error.message}`
     });
   }
 });
@@ -1469,7 +1826,10 @@ app.use((error, _req, res, _next) => {
   });
   return res.status(status).json({
     ok: false,
-    message: error?.message || "Unerwarteter Serverfehler."
+    message:
+      status >= 500
+        ? "Unerwarteter Serverfehler. Bitte spaeter erneut versuchen."
+        : (error?.message || "Unerwarteter Serverfehler.")
   });
 });
 

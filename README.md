@@ -8,8 +8,8 @@ The app uses OpenAI models with web search, returns exactly **5 topics**, one **
 
 - Enter OpenAI API key in the UI and verify it server-side
 - Dynamic model selector via `GET /v1/models`
-- Topic search via the Responses API + web search
-- Currently limited to one search category: **Artificial Intelligence (AI)**
+- Topic search via the Responses API + `web_search`
+- Dynamic categories from runtime config / fallback config
 - Exactly 5 topics + 1 top recommendation with focus points
 - Actions:
   - Copy text
@@ -27,6 +27,8 @@ The app uses OpenAI models with web search, returns exactly **5 topics**, one **
 
 ## Run Locally
 
+The app loads variables automatically from `.env` and `.env.local` if present.
+
 ```bash
 npm install
 npm start
@@ -36,11 +38,20 @@ Then open in the browser:
 
 `http://localhost:3000`
 
+### Local Fallback Mode
+
+If no `DATABASE_URL` is configured, the app now starts in a built-in fallback mode:
+
+- categories, prompt template, output schema, and model policies are loaded from local defaults
+- API key verification and model loading still work
+- topic search still works
+- history and admin remain disabled until PostgreSQL is configured
+
 ## Usage
 
 1. Enter API key (`sk-...`)
 2. Click `Verify API`
-3. Select a model
+3. Select a model (the first compatible model is preselected automatically)
 4. Click `Find me a topic`
 5. Share or export the result
 
@@ -52,7 +63,7 @@ Then open in the browser:
 - `GET /api/models`
   - Header: `x-openai-api-key: sk-...`
 - `POST /api/find-topics`
-  - Body: `{ "apiKey": "sk-...", "model": "gpt-5.2" }`
+  - Body: `{ "apiKey": "sk-...", "model": "gpt-5.4" }`
 - `GET /api/categories`
 
 ### Admin Endpoints (Header: `x-admin-token: <ADMIN_TOKEN>`)
@@ -118,6 +129,15 @@ Then open in the browser:
 - Search timeout
   - Web search can take time
   - Solution: run search again or choose another model
+
+## OpenAI Integration Notes
+
+The app follows the current OpenAI API pattern:
+
+- key verification and model listing via `GET /v1/models`
+- topic generation via `POST /v1/responses`
+- web grounding via `tools: [{ "type": "web_search" }]`
+- structured output via `text.format` with JSON schema
 
 ## License
 

@@ -1,11 +1,14 @@
 const apiKeyInput = document.getElementById("apiKey");
 const verifyBtn = document.getElementById("verifyBtn");
 const verifyStatus = document.getElementById("verifyStatus");
+const appModeNotice = document.getElementById("appModeNotice");
 const modelSelect = document.getElementById("modelSelect");
 const categorySelect = document.getElementById("categorySelect");
 const searchBtn = document.getElementById("searchBtn");
 const results = document.getElementById("results");
 const bestTopic = document.getElementById("bestTopic");
+const sourcePanel = document.getElementById("sourcePanel");
+const sourceList = document.getElementById("sourceList");
 const topicList = document.getElementById("topicList");
 const resultActions = document.getElementById("resultActions");
 const actionStatus = document.getElementById("actionStatus");
@@ -17,10 +20,12 @@ const exportMdBtn = document.getElementById("exportMdBtn");
 const refreshHistoryBtn = document.getElementById("refreshHistoryBtn");
 const historyStatus = document.getElementById("historyStatus");
 const historyList = document.getElementById("historyList");
+const historyPanel = document.getElementById("historyPanel");
 const adminTokenInput = document.getElementById("adminToken");
 const adminLoadBtn = document.getElementById("adminLoadBtn");
 const adminStatus = document.getElementById("adminStatus");
 const adminContent = document.getElementById("adminContent");
+const adminPanel = document.getElementById("adminPanel");
 const adminCategoryMeta = document.getElementById("adminCategoryMeta");
 const adminCategorySlugInput = document.getElementById("adminCategorySlug");
 const adminCategoryLabelInput = document.getElementById("adminCategoryLabel");
@@ -60,6 +65,8 @@ let latestResult = null;
 let resultScrollFrameId = null;
 let defaultCategorySlug = "";
 let adminToken = "";
+let runtimeMode = "database";
+let historyFeatureEnabled = true;
 let adminCategories = [];
 let adminPromptTemplates = [];
 let adminPromptActiveTemplateKey = "";
@@ -112,14 +119,36 @@ function setAdminStatus(message, isError = false) {
   applyStatusState(adminStatus, message, isError);
 }
 
+function applyRuntimeState() {
+  const isFallbackMode = runtimeMode === "fallback";
+
+  if (appModeNotice) {
+    const runtimeMessage = isFallbackMode
+      ? "Lokaler Modus aktiv: Kategorien, Prompt und Policies laufen mit eingebauten Standardwerten. Verlauf und Admin benoetigen DATABASE_URL."
+      : "";
+    appModeNotice.textContent = runtimeMessage;
+    appModeNotice.classList.toggle("hidden", !runtimeMessage);
+  }
+
+  if (historyPanel) {
+    historyPanel.classList.toggle("is-disabled", !historyFeatureEnabled);
+  }
+  if (refreshHistoryBtn) {
+    refreshHistoryBtn.disabled = !historyFeatureEnabled;
+  }
+  if (adminPanel) {
+    adminPanel.classList.toggle("is-disabled", isFallbackMode);
+  }
+}
+
 function setButtonLoading(button, activeText, isLoading) {
   if (isLoading) {
-    button.dataset.prevText = button.textContent;
+    button.dataset.prevHtml = button.innerHTML;
     button.textContent = activeText;
     button.disabled = true;
     return;
   }
-  button.textContent = button.dataset.prevText || button.textContent;
+  button.innerHTML = button.dataset.prevHtml || button.innerHTML;
   button.disabled = false;
 }
 
@@ -181,6 +210,12 @@ function resetResultView() {
   results.classList.add("hidden");
   resultActions.classList.add("hidden");
   bestTopic.innerHTML = "";
+  if (sourcePanel) {
+    sourcePanel.classList.add("hidden");
+  }
+  if (sourceList) {
+    sourceList.innerHTML = "";
+  }
   topicList.innerHTML = "";
   setActionStatus("");
 }
@@ -201,6 +236,14 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 45000) {
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("Zeitüberschreitung bei der Anfrage. Bitte erneut versuchen.");
+    }
+    if (error instanceof TypeError) {
+      throw new Error("Netzwerkfehler. Bitte Verbindung und Server prüfen.");
+    }
+    throw error;
   } finally {
     clearTimeout(timeout);
   }
@@ -216,9 +259,24 @@ async function loadCategories() {
     }
 
     const categories = Array.isArray(payload.categories) ? payload.categories : [];
+    runtimeMode = toText(payload.runtimeMode) || "database";
+    historyFeatureEnabled = payload.historyEnabled !== false;
+    applyRuntimeState();
+
     const ok = renderCategoryOptions(categories, payload.defaultCategory);
     if (!ok) {
       throw new Error("Es stehen aktuell keine nutzbaren Kategorien zur Verfuegung.");
+    }
+
+    if (!historyFeatureEnabled) {
+      renderHistory([]);
+      setHistoryStatus(
+        runtimeMode === "fallback"
+          ? "Verlauf ist im lokalen Modus ohne Datenbank deaktiviert."
+          : "Verlauf ist aktuell deaktiviert."
+      );
+    } else {
+      setHistoryStatus("");
     }
 
     return true;
@@ -246,6 +304,64 @@ function toText(value) {
   if (typeof value === "string") return value.trim();
   if (value === null || value === undefined) return "";
   return String(value).trim();
+}
+
+function normalizeSourceUrl(value) {
+  const raw = toText(value);
+  if (!raw) return "";
+  try {
+    const url = new URL(raw, window.location.href);
+    url.hash = "";
+    return url.toString();
+  } catch (_error) {
+    return raw;
+  }
+}
+
+function getSourceDomain(value) {
+  const normalizedUrl = normalizeSourceUrl(value);
+  if (!normalizedUrl) return "";
+  try {
+    return new URL(normalizedUrl).hostname.replace(/^www\./i, "");
+  } catch (_error) {
+    return "";
+  }
+}
+
+function normalizeSources(value) {
+  const byUrl = new Map();
+
+  for (const item of normalizeArray(value)) {
+    const url = normalizeSourceUrl(item?.url);
+    if (!url) {
+      continue;
+    }
+
+    const source = {
+      url,
+      title: toText(item?.title),
+      domain: getSourceDomain(url),
+      type: toText(item?.type) || "url"
+    };
+    const existing = byUrl.get(url);
+    if (!existing) {
+      byUrl.set(url, source);
+      continue;
+    }
+
+    byUrl.set(url, {
+      ...existing,
+      title: existing.title || source.title,
+      domain: existing.domain || source.domain,
+      type: existing.type || source.type
+    });
+  }
+
+  return Array.from(byUrl.values()).sort((left, right) => {
+    const leftKey = `${left.title || left.domain || left.url}\u0000${left.url}`;
+    const rightKey = `${right.title || right.domain || right.url}\u0000${right.url}`;
+    return leftKey.localeCompare(rightKey, "de");
+  });
 }
 
 function toPositiveIntOrNull(value) {
@@ -336,7 +452,8 @@ function normalizeResultPayload(payload) {
     category: toText(payload?.category),
     categoryLabel: toText(payload?.categoryLabel),
     topics,
-    bestRecommendation
+    bestRecommendation,
+    sources: normalizeSources(payload?.sources)
   };
 }
 
@@ -375,6 +492,41 @@ function renderRecommendation(data) {
     <p><strong>Fokuspunkte:</strong></p>
     <ul>${focus}</ul>
   `;
+}
+
+function renderSources(sources) {
+  if (!sourcePanel || !sourceList) {
+    return;
+  }
+
+  sourceList.innerHTML = "";
+  if (!Array.isArray(sources) || !sources.length) {
+    sourcePanel.classList.add("hidden");
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  for (const source of sources) {
+    const label = source.title || source.domain || source.url;
+    const meta = source.title
+      ? (source.domain || source.url)
+      : (source.domain && source.domain !== source.url ? source.url : "");
+    const row = document.createElement("article");
+    row.className = "source-item";
+    row.innerHTML = `
+      <a
+        class="source-link"
+        href="${escapeHtml(source.url)}"
+        target="_blank"
+        rel="noopener noreferrer"
+      >${escapeHtml(label)}</a>
+      ${meta ? `<p class="source-meta">${escapeHtml(meta)}</p>` : ""}
+    `;
+    fragment.appendChild(row);
+  }
+
+  sourceList.appendChild(fragment);
+  sourcePanel.classList.remove("hidden");
 }
 
 function focusResults() {
@@ -526,6 +678,15 @@ function buildReadableText(result) {
     lines.push("");
   }
 
+  if (normalizeArray(result.sources).length) {
+    lines.push("Quellen:");
+    for (const source of normalizeArray(result.sources)) {
+      const label = source.title || source.domain || source.url;
+      lines.push(`- ${label}: ${source.url}`);
+    }
+    lines.push("");
+  }
+
   lines.push("Weitere Themen:");
   result.topics.forEach((topic, index) => {
     lines.push(`${index + 1}. ${topic.title}`);
@@ -569,6 +730,16 @@ function buildMarkdown(result) {
     lines.push("");
   }
 
+  if (normalizeArray(result.sources).length) {
+    lines.push("## Quellen");
+    lines.push("");
+    for (const source of normalizeArray(result.sources)) {
+      const label = source.title || source.domain || source.url;
+      lines.push(`- [${label}](${source.url})`);
+    }
+    lines.push("");
+  }
+
   lines.push("## Weitere Themen");
   lines.push("");
   result.topics.forEach((topic, index) => {
@@ -597,7 +768,8 @@ function buildExportPayload(result) {
     category: result.category || "",
     categoryLabel: result.categoryLabel || "",
     bestRecommendation: result.bestRecommendation,
-    topics: result.topics
+    topics: result.topics,
+    sources: normalizeArray(result.sources)
   };
 }
 
@@ -611,7 +783,9 @@ function downloadFile(filename, content, mimeType) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(objectUrl);
+  window.setTimeout(() => {
+    URL.revokeObjectURL(objectUrl);
+  }, 0);
 }
 
 function truncateText(text, maxLength = 3000) {
@@ -717,6 +891,16 @@ function handleExportMarkdown() {
 }
 
 async function refreshHistory(options = {}) {
+  if (!historyFeatureEnabled) {
+    renderHistory([]);
+    setHistoryStatus(
+      runtimeMode === "fallback"
+        ? "Verlauf ist im lokalen Modus ohne Datenbank deaktiviert."
+        : "Verlauf ist aktuell deaktiviert."
+    );
+    return;
+  }
+
   const silent = Boolean(options.silent);
   if (!silent) {
     setHistoryStatus("Verlauf wird geladen...");
@@ -744,6 +928,10 @@ async function refreshHistory(options = {}) {
 
 async function loadHistoryEntry(entryId) {
   if (!entryId) return;
+  if (!historyFeatureEnabled) {
+    setHistoryStatus("Verlauf ist aktuell nicht verfuegbar.", true);
+    return;
+  }
   setHistoryStatus("Verlaufseintrag wird geladen...");
 
   try {
@@ -771,6 +959,7 @@ async function loadHistoryEntry(entryId) {
     }
 
     renderRecommendation(latestResult.bestRecommendation);
+    renderSources(latestResult.sources);
     renderTopics(latestResult.topics);
     resultActions.classList.remove("hidden");
     results.classList.remove("hidden");
@@ -786,6 +975,10 @@ async function loadHistoryEntry(entryId) {
 
 async function deleteHistoryEntry(entryId) {
   if (!entryId) return;
+  if (!historyFeatureEnabled) {
+    setHistoryStatus("Verlauf ist aktuell nicht verfuegbar.", true);
+    return;
+  }
   setHistoryStatus("Verlaufseintrag wird geloescht...");
 
   try {
@@ -1156,6 +1349,13 @@ async function loadAdminData(options = {}) {
   if (!adminLoadBtn) return false;
 
   const silent = Boolean(options.silent);
+  if (runtimeMode === "fallback") {
+    setAdminStatus(
+      "Admin ist im lokalen Fallback-Modus nicht verfuegbar. Bitte DATABASE_URL konfigurieren.",
+      true
+    );
+    return false;
+  }
   const token = getAdminToken();
   if (!token) {
     setAdminStatus("Bitte ein Admin-Token eingeben.", true);
@@ -1652,7 +1852,7 @@ async function verifyKeyAndLoadModels() {
 
     const defaultOption = document.createElement("option");
     defaultOption.value = "";
-    defaultOption.textContent = "Bitte Modell wählen";
+    defaultOption.textContent = `Modell wechseln (empfohlen: ${models[0].id})`;
     modelSelect.appendChild(defaultOption);
 
     for (const model of models) {
@@ -1663,8 +1863,12 @@ async function verifyKeyAndLoadModels() {
     }
 
     modelSelect.disabled = false;
+    modelSelect.value = models[0].id;
     lastVerifiedApiKey = apiKey;
-    setStatus(`Verifiziert. ${models.length} Modelle geladen.`);
+    searchBtn.disabled = !modelSelect.value;
+    setStatus(
+      `Verifiziert. ${models.length} Modelle geladen. Empfohlenes Modell: ${models[0].id}.`
+    );
   } catch (error) {
     if (error?.name === "AbortError") {
       setStatus("Zeitüberschreitung bei der Verifizierung. Bitte erneut versuchen.", true);
@@ -1739,6 +1943,7 @@ async function searchTopics() {
     }
 
     renderRecommendation(latestResult.bestRecommendation);
+    renderSources(latestResult.sources);
     renderTopics(latestResult.topics);
     resultActions.classList.remove("hidden");
     results.classList.remove("hidden");
@@ -1918,5 +2123,12 @@ if (adminFlagList) {
 }
 
 renderHistory([]);
-void loadCategories();
-void refreshHistory({ silent: true });
+
+async function initApp() {
+  const categoriesLoaded = await loadCategories();
+  if (categoriesLoaded && historyFeatureEnabled) {
+    await refreshHistory({ silent: true });
+  }
+}
+
+void initApp();

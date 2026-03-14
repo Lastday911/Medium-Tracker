@@ -1,4 +1,6 @@
 const { withClient } = require("./client");
+const { resolveDatabaseConfig } = require("./config");
+const { buildFallbackRuntimeConfig } = require("./fallback-runtime-config");
 
 const CONFIG_CACHE_TTL_MS = 15000;
 const REQUIRED_SETTING_KEYS = [
@@ -23,6 +25,7 @@ class RuntimeConfigError extends Error {
 let cache = null;
 let cacheExpiresAt = 0;
 let pendingLoad = null;
+let cacheGeneration = 0;
 
 function toPositiveInt(value, settingKey) {
   const parsed = Number.parseInt(String(value), 10);
@@ -266,6 +269,10 @@ function parseFeatureFlags(rows) {
 }
 
 async function loadRuntimeConfigFromDb() {
+  if (!resolveDatabaseConfig()) {
+    return buildFallbackRuntimeConfig();
+  }
+
   try {
     return await withClient(async (client) => {
       const settingsRes = await client.query(
@@ -358,6 +365,7 @@ async function loadRuntimeConfigFromDb() {
       const featureFlagsConfig = parseFeatureFlags(featureFlagsRes.rows || []);
 
       return {
+        source: "database",
         settings,
         promptTemplate,
         outputSchema,
@@ -388,22 +396,31 @@ async function getRuntimeConfig(options = {}) {
     return pendingLoad;
   }
 
-  pendingLoad = loadRuntimeConfigFromDb()
+  const loadGeneration = cacheGeneration;
+
+  const currentLoad = loadRuntimeConfigFromDb()
     .then((config) => {
-      cache = config;
-      cacheExpiresAt = Date.now() + CONFIG_CACHE_TTL_MS;
+      if (loadGeneration === cacheGeneration) {
+        cache = config;
+        cacheExpiresAt = Date.now() + CONFIG_CACHE_TTL_MS;
+      }
       return config;
     })
     .finally(() => {
-      pendingLoad = null;
+      if (pendingLoad === currentLoad) {
+        pendingLoad = null;
+      }
     });
 
-  return pendingLoad;
+  pendingLoad = currentLoad;
+  return currentLoad;
 }
 
 function invalidateRuntimeConfigCache() {
+  cacheGeneration += 1;
   cache = null;
   cacheExpiresAt = 0;
+  pendingLoad = null;
 }
 
 module.exports = {
