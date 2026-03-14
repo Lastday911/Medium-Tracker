@@ -136,6 +136,12 @@ test("Frontend-Flow: Verify -> Suche -> Copy/Share/Export", async () => {
         model: "gpt-5.2",
         category: "general_trends",
         categoryLabel: "Allgemeine KI-Trends",
+        sources: [
+          {
+            title: "OpenAI Web Search Guide",
+            url: "https://platform.openai.com/docs/guides/tools-web-search"
+          }
+        ],
         bestRecommendation: {
           topic_title: "Agentische Workflows",
           headline: "Agenten im produktiven Einsatz",
@@ -212,10 +218,12 @@ test("Frontend-Flow: Verify -> Suche -> Copy/Share/Export", async () => {
 
     assert.equal(results.classList.contains("hidden"), false);
     assert.equal(document.querySelectorAll("#topicList .topic").length, 5);
+    assert.equal(document.querySelectorAll("#sourceList .source-link").length, 1);
 
     document.getElementById("copyBtn").click();
     await flushUi();
     assert.match(api.getClipboardText(), /Top-Empfehlung/i);
+    assert.match(api.getClipboardText(), /Quellen:/i);
 
     document.getElementById("telegramBtn").click();
     document.getElementById("whatsappBtn").click();
@@ -283,6 +291,12 @@ test("Frontend-Flow: Verlauf laden und loeschen", async () => {
             model: "gpt-5.2",
             category: "general_trends",
             categoryLabel: "Allgemeine KI-Trends",
+            sources: [
+              {
+                title: "OpenAI Web Search Guide",
+                url: "https://platform.openai.com/docs/guides/tools-web-search"
+              }
+            ],
             bestRecommendation: {
               topic_title: "Agentische Workflows",
               headline: "Headline",
@@ -322,6 +336,7 @@ test("Frontend-Flow: Verlauf laden und loeschen", async () => {
     await flushUi();
     await flushUi();
     assert.equal(document.getElementById("results").classList.contains("hidden"), false);
+    assert.equal(document.querySelectorAll("#sourceList .source-link").length, 1);
 
     deleteButton.click();
     await flushUi();

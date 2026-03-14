@@ -1,3 +1,5 @@
+require("../load-env");
+
 const DEFAULT_POOL_MAX = 10;
 
 function toPositiveInt(value, fallback) {

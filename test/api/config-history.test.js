@@ -8,7 +8,7 @@ process.env.LOG_SILENT = "true";
 const runtimeConfigStore = require("../../src/db/runtime-config");
 const historyStore = require("../../src/db/history-store");
 const adminStore = require("../../src/db/admin-store");
-const { app } = require("../../src/server");
+const { startServer } = require("../../src/server");
 
 const originalRuntimeConfig = {
   getRuntimeConfig: runtimeConfigStore.getRuntimeConfig,
@@ -36,6 +36,32 @@ const originalAdminStore = {
   listFeatureFlagsAdmin: adminStore.listFeatureFlagsAdmin,
   upsertFeatureFlag: adminStore.upsertFeatureFlag
 };
+const originalFetch = global.fetch;
+
+function jsonResponse(payload, status = 200) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => payload
+  };
+}
+
+async function withTestServer(run) {
+  const server = startServer(0);
+  try {
+    return await run(request(server));
+  } finally {
+    await new Promise((resolve, reject) => {
+      server.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+  }
+}
 
 function createDefaultRuntimeConfig() {
   return {
@@ -104,6 +130,7 @@ function createDefaultRuntimeConfig() {
 }
 
 function resetMocks() {
+  global.fetch = originalFetch;
   runtimeConfigStore.getRuntimeConfig = async () => createDefaultRuntimeConfig();
   runtimeConfigStore.invalidateRuntimeConfigCache = () => {};
 
@@ -169,6 +196,7 @@ function resetMocks() {
 }
 
 function restoreOriginals() {
+  global.fetch = originalFetch;
   runtimeConfigStore.getRuntimeConfig = originalRuntimeConfig.getRuntimeConfig;
   runtimeConfigStore.invalidateRuntimeConfigCache =
     originalRuntimeConfig.invalidateRuntimeConfigCache;
@@ -215,11 +243,40 @@ test("GET /api/categories liefert dynamische Kategorien aus Runtime-Config", asy
     ]
   });
 
-  const response = await request(app).get("/api/categories").expect(200);
+  const response = await withTestServer((api) =>
+    api.get("/api/categories").expect(200)
+  );
   assert.equal(response.body.ok, true);
   assert.equal(response.body.defaultCategory, "engineering_research");
   assert.equal(response.body.categories.length, 1);
   assert.equal(response.body.categories[0].slug, "engineering_research");
+});
+
+test("GET /health liefert gehaertete Sicherheits-Header", async () => {
+  const response = await withTestServer((api) => api.get("/health").expect(200));
+  assert.equal(response.headers["x-powered-by"], undefined);
+  assert.equal(response.headers["x-content-type-options"], "nosniff");
+  assert.equal(response.headers["x-frame-options"], "DENY");
+  assert.equal(
+    response.headers["referrer-policy"],
+    "strict-origin-when-cross-origin"
+  );
+  assert.equal(response.headers["cross-origin-opener-policy"], "same-origin");
+});
+
+test("GET /api/categories leakt interne Serverfehler nicht nach aussen", async () => {
+  runtimeConfigStore.getRuntimeConfig = async () => {
+    throw new Error("postgres connection failed");
+  };
+
+  const response = await withTestServer((api) =>
+    api.get("/api/categories").expect(500)
+  );
+  assert.equal(response.body.ok, false);
+  assert.equal(
+    response.body.message,
+    "Kategorien konnten nicht geladen werden. Bitte spaeter erneut versuchen."
+  );
 });
 
 test("GET /api/history nutzt limit/offset und liefert Verlauf", async () => {
@@ -229,7 +286,9 @@ test("GET /api/history nutzt limit/offset und liefert Verlauf", async () => {
     items: [{ id: 9, status: "success", model: "gpt-5.2" }]
   });
 
-  const response = await request(app).get("/api/history?limit=12&offset=5").expect(200);
+  const response = await withTestServer((api) =>
+    api.get("/api/history?limit=12&offset=5").expect(200)
+  );
   assert.equal(response.body.ok, true);
   assert.equal(response.body.limit, 12);
   assert.equal(response.body.offset, 5);
@@ -257,7 +316,7 @@ test("GET /api/history blockiert Zugriff wenn history Rollout deaktiviert ist", 
     return { limit: 20, offset: 0, items: [] };
   };
 
-  const response = await request(app).get("/api/history").expect(403);
+  const response = await withTestServer((api) => api.get("/api/history").expect(403));
   assert.equal(response.body.ok, false);
   assert.match(response.body.message, /verlauf ist aktuell deaktiviert/i);
   assert.equal(listCalled, false);
@@ -265,7 +324,9 @@ test("GET /api/history blockiert Zugriff wenn history Rollout deaktiviert ist", 
 
 test("GET /api/history/:id liefert 404 fuer unbekannte IDs", async () => {
   historyStore.getHistoryEntryById = async () => null;
-  const response = await request(app).get("/api/history/999").expect(404);
+  const response = await withTestServer((api) =>
+    api.get("/api/history/999").expect(404)
+  );
   assert.equal(response.body.ok, false);
   assert.match(response.body.message, /nicht gefunden/i);
 });
@@ -295,10 +356,12 @@ test("GET /api/admin/feature-flags zeigt Rollout-Status inkl. Write-Flag", async
     }
   ];
 
-  const response = await request(app)
-    .get("/api/admin/feature-flags")
-    .set("x-admin-token", "test-admin-token")
-    .expect(200);
+  const response = await withTestServer((api) =>
+    api
+      .get("/api/admin/feature-flags")
+      .set("x-admin-token", "test-admin-token")
+      .expect(200)
+  );
 
   assert.equal(response.body.ok, true);
   assert.equal(response.body.adminWriteEnabledForRequest, false);
@@ -335,17 +398,19 @@ test("POST /api/admin/categories blockiert Schreibzugriff im Read-only Rollout",
     return null;
   };
 
-  const response = await request(app)
-    .post("/api/admin/categories")
-    .set("x-admin-token", "test-admin-token")
-    .send({
-      slug: "new_category",
-      label: "Neue Kategorie",
-      instruction: "Instruktion",
-      sortOrder: 40,
-      isActive: true
-    })
-    .expect(403);
+  const response = await withTestServer((api) =>
+    api
+      .post("/api/admin/categories")
+      .set("x-admin-token", "test-admin-token")
+      .send({
+        slug: "new_category",
+        label: "Neue Kategorie",
+        instruction: "Instruktion",
+        sortOrder: 40,
+        isActive: true
+      })
+      .expect(403)
+  );
 
   assert.equal(response.body.ok, false);
   assert.match(response.body.message, /read-only/i);
@@ -385,17 +450,19 @@ test("POST /api/admin/categories erstellt Kategorie wenn Write-Rollout aktiv", a
     isActive: input.isActive
   });
 
-  const response = await request(app)
-    .post("/api/admin/categories")
-    .set("x-admin-token", "test-admin-token")
-    .send({
-      slug: "ai_governance",
-      label: "AI Governance",
-      instruction: "Fokus Governance",
-      sortOrder: 40,
-      isActive: true
-    })
-    .expect(201);
+  const response = await withTestServer((api) =>
+    api
+      .post("/api/admin/categories")
+      .set("x-admin-token", "test-admin-token")
+      .send({
+        slug: "ai_governance",
+        label: "AI Governance",
+        instruction: "Fokus Governance",
+        sortOrder: 40,
+        isActive: true
+      })
+      .expect(201)
+  );
 
   assert.equal(response.body.ok, true);
   assert.equal(response.body.category.slug, "ai_governance");
@@ -417,15 +484,17 @@ test("PUT /api/admin/feature-flags blockiert Schreibzugriff im Read-only Rollout
     return null;
   };
 
-  const response = await request(app)
-    .put("/api/admin/feature-flags/admin_write_enabled")
-    .set("x-admin-token", "test-admin-token")
-    .send({
-      enabled: true,
-      rolloutPercent: 100,
-      config: {}
-    })
-    .expect(403);
+  const response = await withTestServer((api) =>
+    api
+      .put("/api/admin/feature-flags/admin_write_enabled")
+      .set("x-admin-token", "test-admin-token")
+      .send({
+        enabled: true,
+        rolloutPercent: 100,
+        config: {}
+      })
+      .expect(403)
+  );
 
   assert.equal(response.body.ok, false);
   assert.match(response.body.message, /read-only/i);
@@ -433,12 +502,279 @@ test("PUT /api/admin/feature-flags blockiert Schreibzugriff im Read-only Rollout
 });
 
 test("POST /api/verify-key liefert klare Meldung bei ungueltigem JSON", async () => {
-  const response = await request(app)
-    .post("/api/verify-key")
-    .set("content-type", "application/json")
-    .send('{"apiKey":}')
-    .expect(400);
+  const response = await withTestServer((api) =>
+    api
+      .post("/api/verify-key")
+      .set("content-type", "application/json")
+      .send('{"apiKey":}')
+      .expect(400)
+  );
 
   assert.equal(response.body.ok, false);
   assert.equal(response.body.message, "Ungueltiges JSON im Request-Body.");
+});
+
+test("POST /api/verify-key funktioniert auch ohne geladene Runtime-Config", async () => {
+  runtimeConfigStore.getRuntimeConfig = async () => {
+    throw new Error("db unavailable");
+  };
+
+  let fetchCalled = false;
+  global.fetch = async (url) => {
+    fetchCalled = true;
+    assert.match(String(url), /\/models$/);
+    return jsonResponse({
+      data: [{ id: "gpt-5", created: 100, owned_by: "openai" }]
+    });
+  };
+
+  const response = await withTestServer((api) =>
+    api
+      .post("/api/verify-key")
+      .send({ apiKey: "sk-test-123456" })
+      .expect(200)
+  );
+
+  assert.equal(fetchCalled, true);
+  assert.equal(response.body.ok, true);
+});
+
+test("GET /api/models faellt auf aktuelle Textmodelle zurueck wenn Runtime-Config fehlt", async () => {
+  runtimeConfigStore.getRuntimeConfig = async () => {
+    throw new Error("db unavailable");
+  };
+
+  global.fetch = async (url) => {
+    assert.match(String(url), /\/models$/);
+    return jsonResponse({
+      data: [
+        { id: "gpt-5", created: 300, owned_by: "openai" },
+        { id: "gpt-5-mini", created: 200, owned_by: "openai" },
+        { id: "text-embedding-3-large", created: 100, owned_by: "openai" }
+      ]
+    });
+  };
+
+  const response = await withTestServer((api) =>
+    api
+      .get("/api/models")
+      .set("x-openai-api-key", "sk-test-123456")
+      .expect(200)
+  );
+
+  assert.equal(response.body.ok, true);
+  assert.equal(Array.isArray(response.body.models), true);
+  assert.deepEqual(
+    response.body.models.map((model) => model.id),
+    ["gpt-5", "gpt-5-mini"]
+  );
+});
+
+test("POST /api/find-topics nutzt aktuelle Responses-Websuche und liefert Quellen", async () => {
+  const runtimeConfig = createDefaultRuntimeConfig();
+  const policy = {
+    modelId: "gpt-5.2",
+    enabled: true,
+    priority: 1,
+    supportsWebSearch: true,
+    searchContextSize: "medium",
+    maxOutputTokens: 1800,
+    maxRetryOutputTokens: 2600,
+    enableStructuredOutput: true
+  };
+
+  runtimeConfig.modelPolicies = [policy];
+  runtimeConfig.modelPoliciesById = {
+    "gpt-5.2": policy
+  };
+  runtimeConfigStore.getRuntimeConfig = async () => runtimeConfig;
+
+  let recordedHistoryEntry = null;
+  historyStore.insertHistoryEntry = async (entry) => {
+    recordedHistoryEntry = entry;
+  };
+
+  let capturedBody = null;
+  global.fetch = async (url, options = {}) => {
+    if (!String(url).endsWith("/responses")) {
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    }
+
+    capturedBody = JSON.parse(String(options.body || "{}"));
+    return jsonResponse({
+      status: "completed",
+      output: [
+        {
+          type: "web_search_call",
+          action: {
+            type: "search",
+            query: "Aktuelle KI-Themen",
+            sources: [
+              {
+                type: "url",
+                url: "https://example.com/openai-web-search"
+              }
+            ]
+          }
+        },
+        {
+          type: "message",
+          role: "assistant",
+          content: [
+            {
+              type: "output_text",
+              text: JSON.stringify({
+                topics: [
+                  {
+                    title: "Agentische Workflows",
+                    why_now: "Neue Tooling-Welle",
+                    complexity: "Hoch",
+                    audience_potential: "Sehr hoch",
+                    article_angles: ["A", "B", "C"]
+                  }
+                ],
+                best_recommendation: {
+                  topic_title: "Agentische Workflows",
+                  headline: "Agenten im produktiven Einsatz",
+                  summary: "Zusammenfassung",
+                  focus_points: ["1", "2", "3", "4"]
+                }
+              }),
+              annotations: [
+                {
+                  type: "url_citation",
+                  title: "OpenAI Web Search Guide",
+                  url: "https://example.com/openai-web-search"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+  };
+
+  const response = await withTestServer((api) =>
+    api
+      .post("/api/find-topics")
+      .send({
+        apiKey: "sk-test-123456",
+        model: "gpt-5.2",
+        category: "general_trends"
+      })
+      .expect(200)
+  );
+
+  assert.equal(capturedBody.model, "gpt-5.2");
+  assert.equal(capturedBody.tools[0].type, "web_search");
+  assert.equal(capturedBody.tools[0].search_context_size, "medium");
+  assert.deepEqual(capturedBody.include, ["web_search_call.action.sources"]);
+  assert.equal(capturedBody.tool_choice, "auto");
+  assert.equal(Array.isArray(response.body.sources), true);
+  assert.equal(response.body.sources.length, 1);
+  assert.equal(response.body.sources[0].title, "OpenAI Web Search Guide");
+  assert.equal(
+    response.body.sources[0].url,
+    "https://example.com/openai-web-search"
+  );
+  assert.ok(recordedHistoryEntry);
+  assert.equal(recordedHistoryEntry.resultPayload.sources.length, 1);
+});
+
+test("POST /api/find-topics faellt ohne include zurueck wenn Quellen-include abgelehnt wird", async () => {
+  const runtimeConfig = createDefaultRuntimeConfig();
+  const policy = {
+    modelId: "gpt-5.2",
+    enabled: true,
+    priority: 1,
+    supportsWebSearch: true,
+    searchContextSize: "low",
+    maxOutputTokens: 1800,
+    maxRetryOutputTokens: 2600,
+    enableStructuredOutput: true
+  };
+
+  runtimeConfig.modelPolicies = [policy];
+  runtimeConfig.modelPoliciesById = {
+    "gpt-5.2": policy
+  };
+  runtimeConfigStore.getRuntimeConfig = async () => runtimeConfig;
+
+  const requestBodies = [];
+  global.fetch = async (url, options = {}) => {
+    if (!String(url).endsWith("/responses")) {
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    }
+
+    const parsedBody = JSON.parse(String(options.body || "{}"));
+    requestBodies.push(parsedBody);
+
+    if (requestBodies.length === 1) {
+      return jsonResponse(
+        {
+          error: {
+            message: "Unsupported parameter: 'include'."
+          }
+        },
+        400
+      );
+    }
+
+    return jsonResponse({
+      status: "completed",
+      output: [
+        {
+          type: "message",
+          role: "assistant",
+          content: [
+            {
+              type: "output_text",
+              text: JSON.stringify({
+                topics: [
+                  {
+                    title: "Reasoning mit Websuche",
+                    why_now: "Neue Responses-Optionen",
+                    complexity: "Hoch",
+                    audience_potential: "Hoch",
+                    article_angles: ["A", "B", "C"]
+                  }
+                ],
+                best_recommendation: {
+                  topic_title: "Reasoning mit Websuche",
+                  headline: "Responses API sauber migrieren",
+                  summary: "Zusammenfassung",
+                  focus_points: ["1", "2", "3", "4"]
+                }
+              }),
+              annotations: [
+                {
+                  type: "url_citation",
+                  title: "Fallback Source",
+                  url: "https://example.com/fallback-source"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+  };
+
+  const response = await withTestServer((api) =>
+    api
+      .post("/api/find-topics")
+      .send({
+        apiKey: "sk-test-123456",
+        model: "gpt-5.2",
+        category: "general_trends"
+      })
+      .expect(200)
+  );
+
+  assert.equal(requestBodies.length, 2);
+  assert.deepEqual(requestBodies[0].include, ["web_search_call.action.sources"]);
+  assert.equal("include" in requestBodies[1], false);
+  assert.equal(requestBodies[1].tool_choice, "auto");
+  assert.equal(Array.isArray(response.body.sources), true);
+  assert.equal(response.body.sources[0].title, "Fallback Source");
 });

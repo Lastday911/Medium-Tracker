@@ -11,6 +11,13 @@ function randomRequestId() {
   return crypto.randomBytes(16).toString("hex");
 }
 
+function normalizeRequestId(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[^\w.-]/g, "")
+    .slice(0, 128);
+}
+
 function redactString(input) {
   let value = String(input || "");
   // OpenAI-style keys
@@ -108,7 +115,7 @@ const logger = {
 
 function requestContextMiddleware(req, res, next) {
   const startedAt = Date.now();
-  const requestId = String(req.header("x-request-id") || "").trim() || randomRequestId();
+  const requestId = normalizeRequestId(req.header("x-request-id")) || randomRequestId();
   req.requestId = requestId;
   res.setHeader("x-request-id", requestId);
 
