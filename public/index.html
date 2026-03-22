@@ -3,39 +3,77 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f3efe7" />
+    <meta name="theme-color" content="#101828" />
     <title>Medium Tracker</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Source+Sans+3:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="page-orb page-orb-left" aria-hidden="true"></div>
-    <div class="page-orb page-orb-right" aria-hidden="true"></div>
+    <div class="page-grid" aria-hidden="true"></div>
+    <div class="page-halo page-halo-left" aria-hidden="true"></div>
+    <div class="page-halo page-halo-right" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <div class="site-header__inner">
+        <div class="site-brand">
+          <p class="brand-kicker">KI Research Desk</p>
+          <a class="brand-mark" href="/" aria-label="Medium Tracker Startseite">
+            <span class="brand-name">Medium Tracker</span>
+            <span class="brand-tag">Professionelle Themenrecherche fuer Medium</span>
+          </a>
+        </div>
+
+        <div class="header-notes" aria-label="Produktmerkmale">
+          <span class="header-chip">Deutsch</span>
+          <span class="header-chip">Serverseitige Key-Pruefung</span>
+          <span class="header-chip">Recherche mit Quellenbezug</span>
+        </div>
+      </div>
+    </header>
 
     <main class="app-shell">
       <section class="hero">
         <div class="hero-copy">
-          <p class="brand">Medium Tracker</p>
-          <h1>Recherche fuer starke KI-Artikel, nicht fuer generische Themenlisten.</h1>
+          <p class="eyebrow">Strategische Themenfindung</p>
+          <h1>Finde KI-Themen, die sich wie ein gut recherchierter Leitartikel anfuehlen.</h1>
           <p class="hero-text">
-            Verifiziere deinen OpenAI API-Key serverseitig, lade aktuelle Modelle und
-            finde daraus genau die Themen, die auf Medium gerade Substanz, Tiefe und
-            Relevanz haben.
+            Medium Tracker ist als Research-Desk fuer deutschsprachige Creator gebaut:
+            API-Key verifizieren, aktuelles Modell laden, Kategorie setzen und daraus
+            belastbare KI-Themen mit klarer Top-Empfehlung ableiten.
           </p>
+
           <div class="hero-pills" aria-label="Produktmerkmale">
             <span class="hero-pill">OpenAI Responses API</span>
             <span class="hero-pill">Webquellen sichtbar</span>
             <span class="hero-pill">Maximal 5 Themen</span>
           </div>
+
+          <div class="hero-metrics" aria-label="Produktvorteile">
+            <article class="metric-card">
+              <span class="metric-value">5</span>
+              <span class="metric-label">hochwertig priorisierte Themen pro Lauf</span>
+            </article>
+            <article class="metric-card">
+              <span class="metric-value">1</span>
+              <span class="metric-label">klare Top-Empfehlung mit Titel, Summary und Fokus</span>
+            </article>
+            <article class="metric-card">
+              <span class="metric-value">0</span>
+              <span class="metric-label">persistierte API-Keys oder versteckte Key-Logs</span>
+            </article>
+          </div>
         </div>
 
         <aside class="hero-panel" aria-label="Ablauf">
-          <p class="eyebrow">Ablauf</p>
+          <div class="hero-panel__top">
+            <p class="eyebrow">Arbeitsmodus</p>
+            <h2>Von der sicheren Verifikation bis zur teilbaren Themenliste.</h2>
+            <p class="panel-copy">
+              Die Oberflaeche ist auf einen redaktionellen Ablauf verdichtet: erst
+              verifizieren, dann kuratieren, danach direkt verteilen oder im Verlauf
+              erneut laden.
+            </p>
+          </div>
+
           <ol class="hero-steps">
             <li>
               <span class="step-index">01</span>
@@ -47,19 +85,27 @@
             <li>
               <span class="step-index">02</span>
               <div>
-                <strong>Modell auswaehlen</strong>
-                <p>Aktuelle Textmodelle werden direkt aus OpenAI geladen.</p>
+                <strong>Modell und Kategorie setzen</strong>
+                <p>Aktuelle Modelle und gesteuerte Kategorien fuer saubere Eingrenzung.</p>
               </div>
             </li>
             <li>
               <span class="step-index">03</span>
               <div>
-                <strong>Themen recherchieren</strong>
-                <p>Websuche plus strukturierter Output fuer klare, teilbare Ergebnisse.</p>
+                <strong>Themen recherchieren und verteilen</strong>
+                <p>Top-Empfehlung, weitere Winkel, Quellen und Export in einem Durchgang.</p>
               </div>
             </li>
           </ol>
-          <p id="appModeNotice" class="runtime-note hidden" role="status" aria-live="polite"></p>
+
+          <div class="hero-panel__footer">
+            <div class="trust-list" aria-label="Vertrauensmerkmale">
+              <span class="trust-item">Keine Key-Speicherung</span>
+              <span class="trust-item">History optional per Datenbank</span>
+              <span class="trust-item">Admin-Rollout per Feature-Flags</span>
+            </div>
+            <p id="appModeNotice" class="runtime-note hidden" role="status" aria-live="polite"></p>
+          </div>
         </aside>
       </section>
 
@@ -76,6 +122,11 @@
               <span class="setup-pill">Deutsch</span>
             </div>
           </div>
+
+          <p class="panel-copy">
+            Starte mit der sicheren Verifikation deines OpenAI API-Keys. Danach wird
+            das Modell geladen und die Suche fuer die gewaehlt Kategorie aktiviert.
+          </p>
 
           <div class="field-block">
             <label for="apiKey">OpenAI API-Key</label>
@@ -117,8 +168,18 @@
         </section>
 
         <aside class="panel panel-guide" aria-label="Ergebnisumfang">
-          <p class="eyebrow">Output</p>
-          <h2>Was du bekommst</h2>
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Output</p>
+              <h2>Was du nach jedem Lauf bekommst</h2>
+            </div>
+          </div>
+
+          <p class="panel-copy">
+            Jeder Suchlauf ist auf schnelle redaktionelle Bewertung ausgelegt: eine
+            starke Hauptidee, nachvollziehbare Quellen und direkt nutzbare Exportwege.
+          </p>
+
           <div class="guide-grid">
             <article class="guide-card">
               <strong>Top-Empfehlung</strong>
@@ -130,7 +191,7 @@
             </article>
             <article class="guide-card">
               <strong>Quellenlage</strong>
-              <p>Erkannte Webquellen direkt im Ergebnis fuer schnelles Fact-Checking.</p>
+              <p>Erkannte Webquellen direkt im Ergebnis fuer schnelleres Fact-Checking.</p>
             </article>
             <article class="guide-card">
               <strong>Distribution</strong>
@@ -141,6 +202,19 @@
       </section>
 
       <section id="results" class="results hidden" aria-live="polite">
+        <div class="results-intro">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Rechercheergebnis</p>
+              <h2>Kuratiert fuer den naechsten starken Medium-Artikel</h2>
+            </div>
+          </div>
+          <p class="panel-copy">
+            Teile das Ergebnis direkt weiter oder exportiere es fuer Redaktion, Notion
+            oder deine Content-Pipeline.
+          </p>
+        </div>
+
         <div
           id="resultActions"
           class="result-actions hidden"
@@ -163,198 +237,226 @@
             <span class="btn-icon" aria-hidden="true">MD</span>Als Markdown speichern
           </button>
         </div>
+
         <p id="actionStatus" class="status" role="status" aria-live="polite"></p>
         <article id="bestTopic" class="best-topic"></article>
         <article id="sourcePanel" class="result-sources hidden" aria-labelledby="sourceTitle">
           <div class="section-head">
-            <p class="eyebrow">Quellen</p>
-            <h2 id="sourceTitle">Web-Recherche</h2>
+            <div>
+              <p class="eyebrow">Quellen</p>
+              <h2 id="sourceTitle">Web-Recherche</h2>
+            </div>
           </div>
           <div id="sourceList" class="source-list"></div>
         </article>
         <div id="topicList" class="topic-list"></div>
       </section>
 
-      <section id="historyPanel" class="panel panel-history" aria-labelledby="historyTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">History</p>
-            <h2 id="historyTitle">Verlauf</h2>
+      <section class="management-grid">
+        <section id="historyPanel" class="panel panel-history" aria-labelledby="historyTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">History</p>
+              <h2 id="historyTitle">Verlauf</h2>
+            </div>
+            <div class="history-toolbar">
+              <button id="refreshHistoryBtn" type="button" class="secondary-btn">
+                <span class="btn-icon" aria-hidden="true">SYNC</span>Verlauf aktualisieren
+              </button>
+            </div>
           </div>
-          <div class="history-toolbar">
-            <button id="refreshHistoryBtn" type="button" class="secondary-btn">
-              <span class="btn-icon" aria-hidden="true">SYNC</span>Verlauf aktualisieren
+
+          <p class="panel-copy">
+            Lade erfolgreiche Suchlaeufe erneut oder entferne alte Ergebnisse direkt aus
+            dem Verlauf.
+          </p>
+          <p id="historyStatus" class="status" role="status" aria-live="polite"></p>
+          <div id="historyList" class="history-list"></div>
+        </section>
+
+        <section id="adminPanel" class="panel admin-panel" aria-labelledby="adminTitle">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Admin</p>
+              <h2 id="adminTitle">Konfiguration</h2>
+            </div>
+          </div>
+
+          <p class="panel-copy">
+            Verwalte Kategorien, Prompt-Templates, Modell-Policies und Feature-Flags.
+            Der Bereich ist nur mit gueltigem <code>ADMIN_TOKEN</code> nutzbar.
+          </p>
+
+          <label for="adminToken">Admin-Token</label>
+          <div class="row">
+            <input
+              id="adminToken"
+              type="password"
+              placeholder="ADMIN_TOKEN"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button id="adminLoadBtn" type="button" class="secondary-btn">
+              <span class="btn-icon" aria-hidden="true">ADM</span>Admin laden
             </button>
           </div>
-        </div>
-        <p class="panel-copy">
-          Lade erfolgreiche Suchlaeufe erneut oder raeume alte Ergebnisse direkt aus dem Verlauf.
-        </p>
-        <p id="historyStatus" class="status" role="status" aria-live="polite"></p>
-        <div id="historyList" class="history-list"></div>
-      </section>
+          <p id="adminStatus" class="status" role="status" aria-live="polite"></p>
 
-      <section id="adminPanel" class="panel admin-panel" aria-labelledby="adminTitle">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">Admin</p>
-            <h2 id="adminTitle">Konfiguration</h2>
+          <div id="adminContent" class="admin-content hidden">
+            <article class="admin-block">
+              <div class="admin-block__header">
+                <div>
+                  <h3>Kategorien</h3>
+                  <p class="admin-note">Erstellen, bearbeiten und deaktivieren.</p>
+                </div>
+                <p id="adminCategoryMeta" class="admin-note"></p>
+              </div>
+
+              <div class="admin-create-grid">
+                <input id="adminCategorySlug" type="text" placeholder="Slug, z. B. ai_policy" />
+                <input id="adminCategoryLabel" type="text" placeholder="Label (Deutsch)" />
+                <input id="adminCategorySortOrder" type="number" placeholder="Sortierung (z. B. 40)" />
+                <label class="admin-check">
+                  <input id="adminCategoryIsActive" type="checkbox" checked />
+                  Aktiv
+                </label>
+              </div>
+              <textarea
+                id="adminCategoryInstruction"
+                rows="4"
+                placeholder="Kategorie-Instruktion fuer den Prompt"
+              ></textarea>
+              <div class="admin-toolbar">
+                <button id="adminCreateCategoryBtn" type="button" class="secondary-btn">
+                  Kategorie erstellen
+                </button>
+              </div>
+              <div id="adminCategoryList" class="admin-list"></div>
+            </article>
+
+            <article class="admin-block">
+              <div class="admin-block__header">
+                <div>
+                  <h3>Prompt-Templates</h3>
+                </div>
+                <p id="adminPromptMeta" class="admin-note"></p>
+              </div>
+
+              <div class="admin-create-grid">
+                <input
+                  id="adminPromptTemplateKey"
+                  type="text"
+                  placeholder="Template-Key (z. B. topic_search_base)"
+                />
+                <input id="adminPromptLocale" type="text" value="de" placeholder="Locale (z. B. de)" />
+                <label class="admin-check">
+                  <input id="adminPromptActivate" type="checkbox" checked />
+                  Sofort aktivieren
+                </label>
+                <label class="admin-check">
+                  <input id="adminPromptSetDefault" type="checkbox" checked />
+                  Als Standard-Key setzen
+                </label>
+              </div>
+              <textarea
+                id="adminPromptTemplateText"
+                rows="7"
+                placeholder="Neuer Prompt-Template-Text"
+              ></textarea>
+              <div class="admin-toolbar">
+                <button id="adminCreatePromptVersionBtn" type="button" class="secondary-btn">
+                  Neue Version speichern
+                </button>
+              </div>
+              <div id="adminPromptList" class="admin-list"></div>
+            </article>
+
+            <article class="admin-block">
+              <div class="admin-block__header">
+                <div>
+                  <h3>Modell-Policies</h3>
+                  <p class="admin-note">Steuert Priorisierung, Tokens und Websuche pro Modell.</p>
+                </div>
+              </div>
+
+              <div class="admin-create-grid">
+                <input id="adminPolicyModelId" type="text" placeholder="Model-ID (z. B. gpt-5.4)" />
+                <input id="adminPolicyPriority" type="number" value="100" placeholder="Prioritaet" />
+                <select id="adminPolicySearchContext">
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                </select>
+                <input id="adminPolicyMaxTokens" type="number" value="1800" placeholder="max_output_tokens" />
+                <input
+                  id="adminPolicyMaxRetryTokens"
+                  type="number"
+                  value="2600"
+                  placeholder="max_retry_output_tokens"
+                />
+                <label class="admin-check">
+                  <input id="adminPolicyEnabled" type="checkbox" checked />
+                  Enabled
+                </label>
+                <label class="admin-check">
+                  <input id="adminPolicyWebSearch" type="checkbox" checked />
+                  Websuche
+                </label>
+                <label class="admin-check">
+                  <input id="adminPolicyStructuredOutput" type="checkbox" checked />
+                  Structured Output
+                </label>
+              </div>
+              <div class="admin-toolbar">
+                <button id="adminCreatePolicyBtn" type="button" class="secondary-btn">
+                  Policy erstellen
+                </button>
+              </div>
+              <div id="adminPolicyList" class="admin-list"></div>
+            </article>
+
+            <article class="admin-block">
+              <div class="admin-block__header">
+                <div>
+                  <h3>Feature-Flags</h3>
+                  <p class="admin-note">Rollout in Prozent pro Feature.</p>
+                </div>
+              </div>
+
+              <div class="admin-create-grid">
+                <input
+                  id="adminFlagKey"
+                  type="text"
+                  placeholder="Flag-Key (z. B. category_admin_enabled)"
+                />
+                <input
+                  id="adminFlagRollout"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value="100"
+                  placeholder="Rollout %"
+                />
+                <label class="admin-check">
+                  <input id="adminFlagEnabled" type="checkbox" checked />
+                  Enabled
+                </label>
+                <input id="adminFlagDescription" type="text" placeholder="Beschreibung (optional)" />
+              </div>
+              <textarea
+                id="adminFlagConfig"
+                rows="3"
+                placeholder='Config JSON, z. B. {"rollout_ids":["abc"]}'
+              ></textarea>
+              <div class="admin-toolbar">
+                <button id="adminSaveFlagBtn" type="button" class="secondary-btn">
+                  Flag speichern
+                </button>
+              </div>
+              <div id="adminFlagList" class="admin-list"></div>
+            </article>
           </div>
-        </div>
-        <p class="panel-copy">
-          Verwalte Kategorien, Prompt-Templates, Modell-Policies und Feature-Flags.
-          Der Bereich ist nur mit gueltigem <code>ADMIN_TOKEN</code> nutzbar.
-        </p>
-
-        <label for="adminToken">Admin-Token</label>
-        <div class="row">
-          <input
-            id="adminToken"
-            type="password"
-            placeholder="ADMIN_TOKEN"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <button id="adminLoadBtn" type="button" class="secondary-btn">
-            <span class="btn-icon" aria-hidden="true">ADM</span>Admin laden
-          </button>
-        </div>
-        <p id="adminStatus" class="status" role="status" aria-live="polite"></p>
-
-        <div id="adminContent" class="admin-content hidden">
-          <article class="admin-block">
-            <h3>Kategorien</h3>
-            <p class="admin-note">Erstellen, bearbeiten und deaktivieren.</p>
-            <p id="adminCategoryMeta" class="admin-note"></p>
-            <div class="admin-create-grid">
-              <input id="adminCategorySlug" type="text" placeholder="Slug, z. B. ai_policy" />
-              <input id="adminCategoryLabel" type="text" placeholder="Label (Deutsch)" />
-              <input id="adminCategorySortOrder" type="number" placeholder="Sortierung (z. B. 40)" />
-              <label class="admin-check">
-                <input id="adminCategoryIsActive" type="checkbox" checked />
-                Aktiv
-              </label>
-            </div>
-            <textarea
-              id="adminCategoryInstruction"
-              rows="4"
-              placeholder="Kategorie-Instruktion fuer den Prompt"
-            ></textarea>
-            <div class="admin-toolbar">
-              <button id="adminCreateCategoryBtn" type="button" class="secondary-btn">
-                Kategorie erstellen
-              </button>
-            </div>
-            <div id="adminCategoryList" class="admin-list"></div>
-          </article>
-
-          <article class="admin-block">
-            <h3>Prompt-Templates</h3>
-            <p id="adminPromptMeta" class="admin-note"></p>
-            <div class="admin-create-grid">
-              <input
-                id="adminPromptTemplateKey"
-                type="text"
-                placeholder="Template-Key (z. B. topic_search_base)"
-              />
-              <input id="adminPromptLocale" type="text" value="de" placeholder="Locale (z. B. de)" />
-              <label class="admin-check">
-                <input id="adminPromptActivate" type="checkbox" checked />
-                Sofort aktivieren
-              </label>
-              <label class="admin-check">
-                <input id="adminPromptSetDefault" type="checkbox" checked />
-                Als Standard-Key setzen
-              </label>
-            </div>
-            <textarea
-              id="adminPromptTemplateText"
-              rows="7"
-              placeholder="Neuer Prompt-Template-Text"
-            ></textarea>
-            <div class="admin-toolbar">
-              <button id="adminCreatePromptVersionBtn" type="button" class="secondary-btn">
-                Neue Version speichern
-              </button>
-            </div>
-            <div id="adminPromptList" class="admin-list"></div>
-          </article>
-
-          <article class="admin-block">
-            <h3>Modell-Policies</h3>
-            <p class="admin-note">Steuert Priorisierung, Tokens und Websuche pro Modell.</p>
-            <div class="admin-create-grid">
-              <input id="adminPolicyModelId" type="text" placeholder="Model-ID (z. B. gpt-5.4)" />
-              <input id="adminPolicyPriority" type="number" value="100" placeholder="Prioritaet" />
-              <select id="adminPolicySearchContext">
-                <option value="low">low</option>
-                <option value="medium">medium</option>
-                <option value="high">high</option>
-              </select>
-              <input id="adminPolicyMaxTokens" type="number" value="1800" placeholder="max_output_tokens" />
-              <input
-                id="adminPolicyMaxRetryTokens"
-                type="number"
-                value="2600"
-                placeholder="max_retry_output_tokens"
-              />
-              <label class="admin-check">
-                <input id="adminPolicyEnabled" type="checkbox" checked />
-                Enabled
-              </label>
-              <label class="admin-check">
-                <input id="adminPolicyWebSearch" type="checkbox" checked />
-                Websuche
-              </label>
-              <label class="admin-check">
-                <input id="adminPolicyStructuredOutput" type="checkbox" checked />
-                Structured Output
-              </label>
-            </div>
-            <div class="admin-toolbar">
-              <button id="adminCreatePolicyBtn" type="button" class="secondary-btn">
-                Policy erstellen
-              </button>
-            </div>
-            <div id="adminPolicyList" class="admin-list"></div>
-          </article>
-
-          <article class="admin-block">
-            <h3>Feature-Flags</h3>
-            <p class="admin-note">Rollout in Prozent pro Feature.</p>
-            <div class="admin-create-grid">
-              <input
-                id="adminFlagKey"
-                type="text"
-                placeholder="Flag-Key (z. B. category_admin_enabled)"
-              />
-              <input
-                id="adminFlagRollout"
-                type="number"
-                min="0"
-                max="100"
-                value="100"
-                placeholder="Rollout %"
-              />
-              <label class="admin-check">
-                <input id="adminFlagEnabled" type="checkbox" checked />
-                Enabled
-              </label>
-              <input id="adminFlagDescription" type="text" placeholder="Beschreibung (optional)" />
-            </div>
-            <textarea
-              id="adminFlagConfig"
-              rows="3"
-              placeholder='Config JSON, z. B. {"rollout_ids":["abc"]}'
-            ></textarea>
-            <div class="admin-toolbar">
-              <button id="adminSaveFlagBtn" type="button" class="secondary-btn">
-                Flag speichern
-              </button>
-            </div>
-            <div id="adminFlagList" class="admin-list"></div>
-          </article>
-        </div>
+        </section>
       </section>
     </main>
 

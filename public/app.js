@@ -459,19 +459,35 @@ function normalizeResultPayload(payload) {
 
 function renderTopics(topics) {
   topicList.innerHTML = "";
-  for (const topic of topics) {
+  for (const [index, topic] of topics.entries()) {
     const card = document.createElement("article");
     card.className = "topic";
     const angles = Array.isArray(topic.article_angles)
       ? topic.article_angles.map((x) => `<li>${escapeHtml(x)}</li>`).join("")
       : "";
     card.innerHTML = `
-      <h3>${escapeHtml(topic.title)}</h3>
-      <p><strong>Warum jetzt:</strong> ${escapeHtml(topic.why_now)}</p>
-      <p><strong>Komplexität:</strong> ${escapeHtml(topic.complexity)}</p>
-      <p><strong>Leserpotenzial:</strong> ${escapeHtml(topic.audience_potential)}</p>
-      <p><strong>Artikelwinkel:</strong></p>
-      <ul>${angles}</ul>
+      <div class="topic-header">
+        <span class="topic-number">Thema ${String(index + 1).padStart(2, "0")}</span>
+        <h3>${escapeHtml(topic.title)}</h3>
+      </div>
+      <div class="topic-detail-grid">
+        <div class="topic-detail">
+          <span class="topic-label">Warum jetzt</span>
+          <p>${escapeHtml(topic.why_now)}</p>
+        </div>
+        <div class="topic-detail">
+          <span class="topic-label">Komplexitaet</span>
+          <p>${escapeHtml(topic.complexity)}</p>
+        </div>
+        <div class="topic-detail">
+          <span class="topic-label">Leserpotenzial</span>
+          <p>${escapeHtml(topic.audience_potential)}</p>
+        </div>
+      </div>
+      <div class="topic-angle-block">
+        <span class="topic-label">Artikelwinkel</span>
+        <ul>${angles}</ul>
+      </div>
     `;
     topicList.appendChild(card);
   }
@@ -479,18 +495,40 @@ function renderTopics(topics) {
 
 function renderRecommendation(data) {
   if (!data) {
-    bestTopic.innerHTML = "<h2>Keine Empfehlung verfügbar.</h2>";
+    bestTopic.innerHTML = `
+      <div class="recommendation-shell">
+        <span class="recommendation-tag">Top-Empfehlung</span>
+        <div class="recommendation-copy">
+          <h2>Keine Empfehlung verfuegbar.</h2>
+          <p class="recommendation-summary">
+            Fuer diesen Lauf konnte keine belastbare Hauptempfehlung erstellt werden.
+          </p>
+        </div>
+      </div>
+    `;
     return;
   }
   const focus = Array.isArray(data.focus_points)
     ? data.focus_points.map((x) => `<li>${escapeHtml(x)}</li>`).join("")
     : "";
   bestTopic.innerHTML = `
-    <h2>Top-Empfehlung: ${escapeHtml(data.topic_title)}</h2>
-    <p><strong>Vorgeschlagene Überschrift:</strong> ${escapeHtml(data.headline)}</p>
-    <p>${escapeHtml(data.summary)}</p>
-    <p><strong>Fokuspunkte:</strong></p>
-    <ul>${focus}</ul>
+    <div class="recommendation-shell">
+      <div class="recommendation-header">
+        <div class="recommendation-copy">
+          <span class="recommendation-tag">Top-Empfehlung</span>
+          <h2>${escapeHtml(data.topic_title)}</h2>
+        </div>
+      </div>
+      <div>
+        <span class="recommendation-label">Vorgeschlagene Ueberschrift</span>
+        <p class="recommendation-headline">${escapeHtml(data.headline)}</p>
+      </div>
+      <p class="recommendation-summary">${escapeHtml(data.summary)}</p>
+      <div>
+        <span class="recommendation-label">Fokuspunkte</span>
+        <ul class="focus-list">${focus}</ul>
+      </div>
+    </div>
   `;
 }
 
@@ -614,10 +652,15 @@ function renderHistory(items) {
       Number.isFinite(entry.topicCount) && entry.topicCount > 0
         ? `${entry.topicCount} Themen`
         : "Keine Themen";
+    const statusText = entry.status === "error" ? "Fehler" : "Erfolgreich";
+    const statusClass = entry.status === "error" ? "history-status-pill is-error" : "history-status-pill";
 
     row.innerHTML = `
       <div class="history-main">
-        <h3>${escapeHtml(topTitle)}</h3>
+        <div class="history-item-header">
+          <span class="${statusClass}">${escapeHtml(statusText)}</span>
+          <h3>${escapeHtml(topTitle)}</h3>
+        </div>
         <p class="history-meta">${escapeHtml(summary)}</p>
         <p class="history-meta">${
           entry.status === "error"
